@@ -17,7 +17,6 @@ No desenvolvimento desta solução, promovemos uma abordagem responsável. Discu
 * **Viés (Bias):** Atenuação de possíveis preconceitos do modelo ao detetar emoções em diferentes sotaques, géneros ou tons de voz.
 
 ## 👥 Equipa [G]
-*(Nota: A avaliação formal do esforço com os "Deltas", onde a soma tem de ser igual a 0.00, será incluída na primeira página do relatório).*
 
 * PG[60225] - [Guilherme Lobo Pinto]
 * PG[60289] - [Pedro Alexandre Silva Gomes]
