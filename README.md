@@ -19,6 +19,6 @@ No desenvolvimento desta solução, promovemos uma abordagem responsável. Discu
 ## 👥 Equipa [G]
 *(Nota: A avaliação formal do esforço com os "Deltas", onde a soma tem de ser igual a 0.00, será incluída na primeira página do relatório).*
 
-* PG[Número] - [Nome do teu amigo]
-* PG[Número] - [O teu Nome]
-* PG[Número] - [Nome do outro amigo]
+* PG[60225] - [Guilherme Lobo Pinto]
+* PG[60289] - [Pedro Alexandre Silva Gomes]
+* PG[60393] - [Simão Novais Vieira da Silva]
