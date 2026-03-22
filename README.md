@@ -1,1 +1,24 @@
-🤖 SmartHandover: O Bot Empático de Apoio ao Cliente📖 Descrição do ProjetoO SmartHandover é um protótipo de um agente conversacional de Customer Service equipado com inteligência emocional. O objetivo principal deste sistema é monitorizar, em tempo real, o estado afetivo do utilizador durante uma interação. Em vez de prender um cliente frustrado num ciclo infinito de respostas automáticas, o bot analisa sinais multimodais (o tom de voz e o texto falado) para detetar sinais de frustração ou raiva. Assim que um limiar crítico de emoção negativa é atingido, o bot reencaminha automaticamente a chamada, de forma suave e empática, para um assistente humano.🎓 Contexto AcadémicoEste projeto foi desenvolvido no âmbito da unidade curricular de Computação Afetiva do Mestrado em Inteligência Artificial da Universidade do Minho , no ano letivo 2025/2026.🧠 Metodologia e ModelaçãoModelo de Emoção: Utilizamos um modelo [indicar se é discreto e/ou dimensional]. [Exemplo: modelo discreto focado nas emoções Base de Ekman, dando primazia à deteção de 'Frustração' e 'Raiva']Abordagem Multimodal: O sistema estima o estado afetivo a partir de duas fontes observáveis : texto (transcrição do que o cliente diz) e áudio (prosódia e tom de voz).Pipeline: O projeto engloba todo o ciclo de vida: seleção e recolha de dados, pré-processamento, extração de características relevantes, modelação com Machine Learning/Deep Learning e avaliação do sistema.⚖️ Considerações Éticas e ResponsabilidadeNo desenvolvimento desta solução, promovemos uma abordagem responsável. Discutimos no relatório as implicações éticas associadas ao sistema, nomeadamente em relação a:Privacidade e Consentimento: Tratamento e proteção das gravações de áudio dos utilizadores.Viés (Bias): Atenuação de possíveis preconceitos do modelo ao detetar emoções em diferentes sotaques, géneros ou tons de voz.👥 Equipa [G](Nota: A avaliação formal do esforço com os "Deltas", onde a soma tem de ser igual a 0.00, será incluída na primeira página do relatório ).PG[Número] - [Nome do teu amigo]PG[Número] - [O teu Nome]PG[Número] - [Nome do outro amigo]Como o próximo passo lógico para o projeto é a obtenção de dados, gostavas que vos ajudasse a procurar bons datasets públicos de áudio e texto (com anotações emocionais) para começarem a treinar o vosso modelo?
+# 🤖 SmartHandover: O Bot Empático de Apoio ao Cliente
+
+## 📖 Descrição do Projeto
+O **SmartHandover** é um protótipo de um agente conversacional de *Customer Service* equipado com inteligência emocional. O objetivo principal deste sistema é monitorizar, em tempo real, o estado afetivo do utilizador durante uma interação. Em vez de prender um cliente frustrado num ciclo infinito de respostas automáticas, o bot analisa sinais multimodais (o tom de voz e o texto falado) para detetar sinais de frustração ou raiva. Assim que um limiar crítico de emoção negativa é atingido, o bot reencaminha automaticamente a chamada, de forma suave e empática, para um assistente humano. 
+
+## 🎓 Contexto Académico
+Este projeto foi desenvolvido no âmbito da unidade curricular de **Computação Afetiva** do **Mestrado em Inteligência Artificial** da **Universidade do Minho**, no ano letivo 2025/2026. 
+
+## 🧠 Metodologia e Modelação
+* **Modelo de Emoção:** Utilizamos um modelo [indicar se é discreto e/ou dimensional]. *[Exemplo: modelo discreto focado nas emoções Base de Ekman, dando primazia à deteção de 'Frustração' e 'Raiva']*
+* **Abordagem Multimodal:** O sistema estima o estado afetivo a partir de duas fontes observáveis: **texto** (transcrição do que o cliente diz) e **áudio** (prosódia e tom de voz).
+* **Pipeline:** O projeto engloba todo o ciclo de vida: seleção e recolha de dados, pré-processamento, extração de características relevantes, modelação com *Machine Learning/Deep Learning* e avaliação do sistema.
+
+## ⚖️ Considerações Éticas e Responsabilidade
+No desenvolvimento desta solução, promovemos uma abordagem responsável. Discutimos no relatório as implicações éticas associadas ao sistema, nomeadamente em relação a:
+* **Privacidade e Consentimento:** Tratamento e proteção das gravações de áudio dos utilizadores.
+* **Viés (Bias):** Atenuação de possíveis preconceitos do modelo ao detetar emoções em diferentes sotaques, géneros ou tons de voz.
+
+## 👥 Equipa [G]
+*(Nota: A avaliação formal do esforço com os "Deltas", onde a soma tem de ser igual a 0.00, será incluída na primeira página do relatório).*
+
+* PG[Número] - [Nome do teu amigo]
+* PG[Número] - [O teu Nome]
+* PG[Número] - [Nome do outro amigo]
