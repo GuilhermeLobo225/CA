@@ -1,23 +1,84 @@
-# 🤖 SmartHandover: O Bot Empático de Apoio ao Cliente
+# 🤖 SmartHandover: Deteção Multimodal de Frustração em Apoio ao Cliente
 
 ## 📖 Descrição do Projeto
-O **SmartHandover** é um protótipo de um agente conversacional de *Customer Service* equipado com inteligência emocional. O objetivo principal deste sistema é monitorizar, em tempo real, o estado afetivo do utilizador durante uma interação. Em vez de prender um cliente frustrado num ciclo infinito de respostas automáticas, o bot analisa sinais multimodais (o tom de voz e o texto falado) para detetar sinais de frustração ou raiva. Assim que um limiar crítico de emoção negativa é atingido, o bot reencaminha automaticamente a chamada, de forma suave e empática, para um assistente humano. 
+
+O **SmartHandover** é um protótipo de computação afetiva que monitoriza, em tempo real, o estado emocional do utilizador durante chamadas de apoio ao cliente. Em vez de prender um cliente frustrado num ciclo infinito de respostas automáticas, o sistema analisa sinais multimodais — **texto** (transcrição) e **áudio** (prosódia) — para detetar frustração e raiva. Quando um limiar crítico de emoção negativa é ultrapassado, a chamada é reencaminhada automaticamente para um agente humano (*handover*).
 
 ## 🎓 Contexto Académico
-Este projeto foi desenvolvido no âmbito da unidade curricular de **Computação Afetiva** do **Mestrado em Inteligência Artificial** da **Universidade do Minho**, no ano letivo 2025/2026. 
 
-## 🧠 Metodologia e Modelação
-* **Modelo de Emoção:** Utilizamos um modelo [indicar se é discreto e/ou dimensional]. *[Exemplo: modelo discreto focado nas emoções Base de Ekman, dando primazia à deteção de 'Frustração' e 'Raiva']*
-* **Abordagem Multimodal:** O sistema estima o estado afetivo a partir de duas fontes observáveis: **texto** (transcrição do que o cliente diz) e **áudio** (prosódia e tom de voz).
-* **Pipeline:** O projeto engloba todo o ciclo de vida: seleção e recolha de dados, pré-processamento, extração de características relevantes, modelação com *Machine Learning/Deep Learning* e avaliação do sistema.
+Projeto desenvolvido no âmbito da unidade curricular de **Computação Afetiva** do **Mestrado em Inteligência Artificial** da **Universidade do Minho** (ano letivo 2025/2026).
 
-## ⚖️ Considerações Éticas e Responsabilidade
-No desenvolvimento desta solução, promovemos uma abordagem responsável. Discutimos no relatório as implicações éticas associadas ao sistema, nomeadamente em relação a:
-* **Privacidade e Consentimento:** Tratamento e proteção das gravações de áudio dos utilizadores.
-* **Viés (Bias):** Atenuação de possíveis preconceitos do modelo ao detetar emoções em diferentes sotaques, géneros ou tons de voz.
+## 🧠 Arquitetura e Metodologia
 
-## 👥 Equipa [G]
+### Modelo de Emoção
 
-* PG[60225] - [Guilherme Lobo Pinto]
-* PG[60289] - [Pedro Alexandre Silva Gomes]
-* PG[60393] - [Simão Novais Vieira da Silva]
+Adota-se uma abordagem **híbrida** que combina três modelos teóricos complementares:
+
+- **Ekman (discreto):** classificação primária num subconjunto de 5 categorias — *raiva, frustração, tristeza, neutro, satisfação*.
+- **Russell (dimensional):** estimação contínua da dimensão de *arousal* (ativação) para monitorizar a intensidade emocional ao longo da interação.
+- **Plutchik (gradação):** escala de intensidade (*aborrecimento → raiva → fúria*) para definir diferentes níveis de urgência no reencaminhamento.
+
+### Pipeline Multimodal
+
+O sistema segue um pipeline modular em cadeia:
+
+1. **ASR (Transcrição):** conversão fala → texto via **Whisper** (small/medium).
+2. **Módulo Textual:** tokenização e classificação emocional com **RoBERTa-base** (~125M parâmetros), com *fine-tuning* sobre dados conversacionais.
+3. **Módulo Acústico:** extração de embeddings com **wav2vec 2.0 base** (~95M parâmetros), complementados com features prosódicas tradicionais (F0, energia, jitter, shimmer) via **openSMILE**.
+4. **Módulo de Fusão:** comparação de três estratégias — fusão tardia por concatenação (*baseline*), atenção cruzada e fusão ao nível da decisão.
+5. **Módulo de Decisão (*Handover*):** janela temporal com média ponderada exponencial; o reencaminhamento é acionado quando o *arousal* ultrapassa um limiar calibrado ou N enunciados consecutivos são classificados como *raiva*.
+
+### Estratégia Linguística
+
+O desenvolvimento segue duas fases:
+
+1. **Fase 1 — Inglês:** validação da arquitetura sobre datasets de referência, permitindo comparação direta com benchmarks da literatura.
+2. **Fase 2 — Português:** adaptação com modelos multilingues (XLM-RoBERTa-base para texto; wav2vec 2.0 multilingue para áudio).
+
+## 📊 Datasets
+
+| Dataset | Modalidades | Dimensão | Utilização |
+|---|---|---|---|
+| **IEMOCAP** | Texto + Áudio | ~12h de diálogos | Treino e avaliação da fusão multimodal |
+| **MELD** | Texto + Áudio + Vídeo | ~13.000 enunciados | Avaliação de dinâmicas conversacionais |
+| **GoEmotions** | Texto | ~58.000 comentários | Pré-treino complementar do módulo textual |
+
+## 📐 Métricas de Avaliação
+
+- **Métrica primária:** Weighted F1-score (adequada ao desbalanceamento de classes).
+- **Métricas complementares:** Accuracy, Precision/Recall por classe, F1-score macro.
+- **Módulo de handover:** Curvas Precision-Recall e PR-AUC para calibração do limiar de reencaminhamento.
+- **Validação:** *Stratified k-fold cross-validation*.
+
+## ⚖️ Considerações Éticas
+
+- **Privacidade e Consentimento:** anonimização dos dados de voz e conformidade com o RGPD.
+- **Viés:** análise de desempenho por género, sotaque e faixa etária.
+- **Chilling Effect:** discussão sobre o impacto da monitorização emocional no comportamento natural dos utilizadores.
+
+## 🗂️ Estrutura do Repositório
+
+> *A completar à medida que o desenvolvimento avança.*
+
+```
+SmartHandover/
+├── README.md
+├── data/                  # Scripts de download e pré-processamento dos datasets
+├── src/
+│   ├── asr/               # Módulo de transcrição (Whisper)
+│   ├── text/              # Módulo textual (RoBERTa)
+│   ├── audio/             # Módulo acústico (wav2vec 2.0)
+│   ├── fusion/            # Estratégias de fusão multimodal
+│   └── decision/          # Módulo de decisão e handover
+├── notebooks/             # Notebooks de experimentação e análise
+├── results/               # Resultados experimentais, gráficos e tabelas
+└── requirements.txt
+```
+
+## 👥 Equipa
+
+| Número | Nome |
+|---|---|
+| PG60225 | Guilherme Lobo Pinto |
+| PG60289 | Pedro Alexandre Silva Gomes |
+| PG60393 | Simão Novais Vieira da Silva |
