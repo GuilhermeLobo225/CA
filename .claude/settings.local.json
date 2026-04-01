@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:discuss.huggingface.co)",
+      "WebFetch(domain:affective-meld.github.io)",
+      "Bash(.venv/Scripts/pip show:*)",
+      "Bash(.venv/Scripts/pip install:*)",
+      "Bash(.venv/Scripts/python -c \":*)",
+      "Bash(.venv/Scripts/python -c \"import torch; print\\(f''torch={torch.__version__}''\\); print\\(f''cuda_available={torch.cuda.is_available\\(\\)}''\\); print\\(f''built_with_cuda={torch.version.cuda}''\\)\")",
+      "Bash(.venv/Scripts/python -c \"import torch; print\\(f''torch={torch.__version__}''\\); print\\(f''cuda_available={torch.cuda.is_available\\(\\)}''\\); print\\(f''cuda_version={torch.version.cuda}''\\); print\\(f''gpu={torch.cuda.get_device_name\\(0\\) if torch.cuda.is_available\\(\\) else \"\"N/A\"\"}''\\)\")",
+      "Bash(.venv/Scripts/python -c \"import torch; print\\(f''torch={torch.__version__}''\\); print\\(f''cuda={torch.cuda.is_available\\(\\)}''\\); print\\(f''cuda_ver={torch.version.cuda}''\\); print\\(f''gpu={torch.cuda.get_device_name\\(0\\)}''\\)\")",
+      "Bash(.venv/Scripts/python src/models/vram_test.py)",
+      "Bash(git rm:*)"
+    ]
+  }
+}

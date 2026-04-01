@@ -1,0 +1,65 @@
+# Smart Handover — Phase 2 Configuration
+# Multimodal Frustration Detection (Text + Audio)
+
+# --- Data ---
+data:
+  dataset: "ajyy/MELD_audio"
+  num_classes: 5
+  max_text_length: 128            # RoBERTa max token count
+  max_audio_length_sec: 15        # truncate audio beyond this
+  audio_sample_rate: 16000
+
+# --- Models ---
+text_encoder:
+  model_name: "roberta-base"
+  embedding_dim: 768
+
+audio_encoder:
+  model_name: "facebook/wav2vec2-base"
+  embedding_dim: 768
+
+fusion:
+  type: "concat"                  # "concat" or "gated"
+  hidden_dim: 512
+  dropout: 0.3
+  num_classes: 5
+
+# --- Training ---
+training:
+  epochs: 40
+  batch_size: 16                  # physical batch size (increased — fits in 16GB)
+  accumulation_steps: 2           # effective batch = 16 * 2 = 32
+  learning_rate: 2.0e-5           # for classification head / fusion
+  encoder_lr_multiplier: 0.1      # encoder LR = lr * 0.1 = 2e-6
+  weight_decay: 0.01
+  warmup_ratio: 0.1               # 10% of total steps
+  fp16: true
+  max_grad_norm: 1.0              # gradient clipping
+
+  # Encoder freezing strategy
+  freeze_encoders: true           # freeze encoders for first N epochs
+  freeze_epochs: 2
+  unfreeze_top_n_layers: 4        # unfreeze last N transformer layers after freeze_epochs
+
+  # Class imbalance handling
+  use_weighted_loss: true         # inverse-frequency class weighting
+  use_focal_loss: true           # set true to replace CE with focal loss
+  focal_gamma: 1.0
+
+  # Early stopping
+  early_stopping_patience: 8
+  early_stopping_metric: "frustration_recall"
+
+  # Checkpointing
+  checkpoint_dir: "checkpoints"
+  save_best_only: true
+
+# --- Evaluation ---
+evaluation:
+  primary_metric: "weighted_f1"
+  focus_class: "frustration"      # prominently reported class
+
+# --- Hardware ---
+hardware:
+  device: "cuda"
+  seed: 42
