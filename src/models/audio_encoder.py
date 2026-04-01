@@ -14,7 +14,11 @@ from transformers import Wav2Vec2Model, Wav2Vec2Processor
 class AudioEncoder(nn.Module):
     def __init__(self, model_name="facebook/wav2vec2-base", embedding_dim=768):
         super().__init__()
-        self.wav2vec2 = Wav2Vec2Model.from_pretrained(model_name)
+        self.wav2vec2 = Wav2Vec2Model.from_pretrained(
+            "facebook/wav2vec2-base",
+            mask_time_prob=0.0,
+            mask_feature_prob=0.0 
+        )
         self.processor = Wav2Vec2Processor.from_pretrained(model_name)
         self.embedding_dim = embedding_dim
 
