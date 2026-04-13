@@ -12,7 +12,23 @@
       "Bash(.venv/Scripts/python -c \"import torch; print\\(f''torch={torch.__version__}''\\); print\\(f''cuda_available={torch.cuda.is_available\\(\\)}''\\); print\\(f''cuda_version={torch.version.cuda}''\\); print\\(f''gpu={torch.cuda.get_device_name\\(0\\) if torch.cuda.is_available\\(\\) else \"\"N/A\"\"}''\\)\")",
       "Bash(.venv/Scripts/python -c \"import torch; print\\(f''torch={torch.__version__}''\\); print\\(f''cuda={torch.cuda.is_available\\(\\)}''\\); print\\(f''cuda_ver={torch.version.cuda}''\\); print\\(f''gpu={torch.cuda.get_device_name\\(0\\)}''\\)\")",
       "Bash(.venv/Scripts/python src/models/vram_test.py)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(git fetch:*)",
+      "Bash(python -c \"from transformers import pipeline; print\\('transformers OK'\\)\")",
+      "Bash(pip install:*)",
+      "Bash(python -c \"from transformers import pipeline; print\\('OK'\\)\")",
+      "Bash(python run_day2_goemo.py --mock)",
+      "Bash(python run_day2_goemo.py --device 0 --batch-size 64)",
+      "Bash(python -c \"from speechbrain.inference import EncoderClassifier; print\\('speechbrain OK'\\)\")",
+      "Bash(python -c \"import whisper; print\\('whisper OK'\\)\")",
+      "Bash(python run_day3_audio.py --mock --device cpu)",
+      "Bash(python -c \"from speechbrain.utils.fetching import LocalStrategy; print\\(dir\\(LocalStrategy\\)\\)\")",
+      "Bash(python -c ':*)",
+      "Bash(python run_day3_audio.py --mock --device cpu --skip-whisper)",
+      "Bash(python run_day3_audio.py --device cuda --whisper-samples 50)",
+      "Bash(python run_day4_train.py --batch-size 16 --max-epochs 40)",
+      "Bash(python -c \"import torch; print\\('CUDA:', torch.cuda.is_available\\(\\)\\); print\\('Device:', torch.cuda.get_device_name\\(0\\) if torch.cuda.is_available\\(\\) else 'CPU'\\)\")",
+      "Bash(python run_day4_train.py --eval-only)"
     ]
   }
 }

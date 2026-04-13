@@ -13,6 +13,10 @@ checkpoints/
 *.pt
 *.pth
 
+# Model caches (downloaded at runtime)
+tmp_speechbrain/
+.cache/
+
 # Data files (downloaded via HuggingFace)
 data/raw/
 data/processed/*.png
