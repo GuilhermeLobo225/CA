@@ -1,0 +1,19 @@
+{
+  "threshold": 0.3,
+  "window_size": 3,
+  "n_conversations": 279,
+  "n_with_negative": 170,
+  "n_clean": 109,
+  "n_caught": 151,
+  "n_missed": 19,
+  "n_false_handovers": 49,
+  "n_triggered_any": 200,
+  "conv_recall": 0.888235294117647,
+  "conv_precision": 0.755,
+  "conv_false_rate": 0.44954128440366975,
+  "mean_catch_latency_utt": -0.5496688741721855,
+  "trigger_reason_counts": {
+    "instant_strong_emotion": 151,
+    "sustained_negative_trend": 49
+  }
+}

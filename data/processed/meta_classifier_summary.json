@@ -1,0 +1,58 @@
+{
+  "best_meta_classifier": "MLPClassifier",
+  "checkpoint": "checkpoints\\meta_classifier.pkl",
+  "feature_columns": [
+    "prob_anger",
+    "prob_frust",
+    "prob_sadne",
+    "prob_neutr",
+    "prob_satis",
+    "goemo_anger",
+    "goemo_disgust",
+    "goemo_fear",
+    "goemo_joy",
+    "goemo_neutral",
+    "goemo_sadness",
+    "vader_pos",
+    "vader_neg",
+    "vader_neu",
+    "vader_compound",
+    "sb_ang",
+    "sb_hap",
+    "sb_sad",
+    "sb_neu"
+  ],
+  "target_labels": [
+    "anger",
+    "frustration",
+    "sadness",
+    "neutral",
+    "satisfaction"
+  ],
+  "summary": {
+    "LogisticRegression": {
+      "val_weighted_f1": 0.6231741615987576,
+      "val_macro_f1": 0.49181933943968836,
+      "val_frust_recall": 0.175,
+      "test_weighted_f1": 0.6458483482656381,
+      "test_macro_f1": 0.4687000473983411,
+      "test_frust_recall": 0.14
+    },
+    "XGBClassifier": {
+      "val_weighted_f1": 0.6040113522705506,
+      "val_macro_f1": 0.450829752333628,
+      "val_frust_recall": 0.05,
+      "test_weighted_f1": 0.6332467796849874,
+      "test_macro_f1": 0.44231235997546997,
+      "test_frust_recall": 0.08
+    },
+    "MLPClassifier": {
+      "val_weighted_f1": 0.6294307045704409,
+      "val_macro_f1": 0.49665368453330816,
+      "val_frust_recall": 0.15,
+      "test_weighted_f1": 0.6474279804772783,
+      "test_macro_f1": 0.4729731123332801,
+      "test_frust_recall": 0.14
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "optimal_threshold": 0.3,
+  "min_precision_constraint": 0.5,
+  "search_range": [
+    0.3,
+    0.7
+  ],
+  "step": 0.01,
+  "selection_rule": "max frustration_recall s.t. handover_precision > 0.5",
+  "validation_metrics": {
+    "handover_precision": 0.6306818181818182,
+    "handover_recall": 0.5162790697674419,
+    "handover_f1": 0.5677749360613811,
+    "frustration_recall": 0.5
+  },
+  "test_metrics": {
+    "handover_precision": 0.5384615384615384,
+    "handover_recall": 0.468682505399568,
+    "handover_f1": 0.5011547344110854,
+    "frustration_recall": 0.24
+  }
+}

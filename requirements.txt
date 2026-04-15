@@ -1,11 +1,32 @@
+# --- Core deep-learning stack -------------------------------------------
 torch>=2.1.0
 torchaudio>=2.1.0
 transformers>=4.35.0
 datasets>=2.14.0,<3.0.0  # v3+ dropped support for HF loading scripts (needed for ajyy/MELD_audio)
+
+# --- Audio / ASR ---------------------------------------------------------
 librosa>=0.10.1
 soundfile>=0.12.1
-opensmile>=2.5.0
-scikit-learn>=1.3.0
+openai-whisper>=20231117     # Day 3: Whisper ASR
+opensmile>=2.5.0             # legacy (Phase 2 features) — kept for back-compat
+
+# --- Text classifiers (Week 1-2) -----------------------------------------
+vaderSentiment>=3.3.2         # Day 1: VADER lexicon
+
+# --- Meta-classifier / ML ------------------------------------------------
+scikit-learn>=1.3.0           # LogisticRegression, MLPClassifier, metrics
+xgboost>=2.0.0                # Day 6: XGBClassifier meta candidate
+joblib>=1.3.0                 # meta_classifier.pkl (de)serialisation
+
+# --- Data / utilities ----------------------------------------------------
+numpy>=1.24.0
 pandas>=2.1.0
 tqdm>=4.66.0
 pyyaml>=6.0
+
+# --- Plotting (Week 2 ablation / error analysis) -------------------------
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# --- Week 3 demo ---------------------------------------------------------
+gradio>=4.0.0
