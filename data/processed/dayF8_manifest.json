@@ -1,14 +1,18 @@
 {
   "conditions": [
+    "meld_only",
+    "synth_only",
     "combined",
-    "meld_only"
+    "combined_cw"
   ],
   "checkpoints": {
+    "meld_only": "checkpoints\\roberta_meld_only.pt",
+    "synth_only": "checkpoints\\roberta_synth_only.pt",
     "combined": "checkpoints\\roberta_combined.pt",
-    "meld_only": "checkpoints\\roberta_text_only.pt"
+    "combined_cw": "checkpoints\\roberta_combined_cw.pt"
   },
   "synthetic_source": "data\\synthetic\\text_filtered.jsonl",
-  "epochs": 2,
+  "epochs": 20,
   "seed": 42,
   "summary_csv": "data\\processed\\dayF8_results.csv"
 }
