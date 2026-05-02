@@ -24,7 +24,7 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 TARGET_LABELS = ["anger", "frustration", "sadness", "neutral", "satisfaction"]
 TARGET_LABEL2ID = {label: i for i, label in enumerate(TARGET_LABELS)}

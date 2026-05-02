@@ -14,7 +14,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.classifiers.ensemble import (
     TextEnsembleClassifier, vader_to_probs, goemo_row_to_probs,

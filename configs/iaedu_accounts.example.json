@@ -1,0 +1,36 @@
+{
+  "_comment": [
+    "IAEDU account pool for synthetic-text generation.",
+    "",
+    "Each account has its own channel_id (visible in the IAEDU portal URL when",
+    "you open a chat). Copy this file to configs/iaedu_accounts.json and",
+    "fill in real values. The configs/iaedu_accounts.json file is gitignored.",
+    "",
+    "default_endpoint applies to every account that does not override it.",
+    "agent_id cmamvd3n40000c801qeacoad2 is the gpt-4o agent used in the AP",
+    "project; change if your portal points elsewhere."
+  ],
+  "default_endpoint": "https://api.iaedu.pt/agent-chat//api/v1/agent/cmamvd3n40000c801qeacoad2/stream",
+  "accounts": [
+    {
+      "name": "Conta 1",
+      "api_key": "sk-usr-PASTE_KEY_1_HERE",
+      "channel_id": "PASTE_CHANNEL_ID_1_HERE"
+    },
+    {
+      "name": "Conta 2",
+      "api_key": "sk-usr-PASTE_KEY_2_HERE",
+      "channel_id": "PASTE_CHANNEL_ID_2_HERE"
+    },
+    {
+      "name": "Conta 3",
+      "api_key": "sk-usr-PASTE_KEY_3_HERE",
+      "channel_id": "PASTE_CHANNEL_ID_3_HERE"
+    },
+    {
+      "name": "Conta 4",
+      "api_key": "sk-usr-PASTE_KEY_4_HERE",
+      "channel_id": "PASTE_CHANNEL_ID_4_HERE"
+    }
+  ]
+}

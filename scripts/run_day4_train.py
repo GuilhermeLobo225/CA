@@ -15,7 +15,7 @@ import sys
 import torch
 import pandas as pd
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.training.train_text import (
     TextOnlyClassifier, train_model, evaluate_on_test, NUM_CLASSES,

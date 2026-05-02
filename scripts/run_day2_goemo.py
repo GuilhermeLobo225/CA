@@ -20,7 +20,7 @@ import time
 import pandas as pd
 from tqdm import tqdm
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.classifiers.goemo_classifier import GoEmotionsClassifier, GOEMO_LABELS
 

@@ -30,3 +30,7 @@ seaborn>=0.12.0
 
 # --- Week 3 demo ---------------------------------------------------------
 gradio>=4.0.0
+
+# --- Phase 4: synthetic data generation ---------------------------------
+openai>=1.50.0               # text generation + TTS via OpenAI / IAEDU proxy
+imbalanced-learn>=0.12.0     # SMOTE / class-balanced meta-classifier

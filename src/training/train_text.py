@@ -117,6 +117,68 @@ def load_meld_texts(split: str):
     return texts, labels
 
 
+def load_synthetic_texts(jsonl_path: str):
+    """Load a synthetic-text JSONL (output of filter_text.py) and return
+    (texts, labels) as lists, ready to feed MeldTextDataset.
+
+    Records that lack ``text`` or carry an unknown label are skipped.
+    """
+    import json
+
+    texts, labels = [], []
+    with open(jsonl_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            label = rec.get("label")
+            text = rec.get("text", "").strip()
+            if not text or label not in TARGET_LABEL2ID:
+                continue
+            texts.append(text)
+            labels.append(TARGET_LABEL2ID[label])
+    return texts, labels
+
+
+def split_synthetic(texts, labels, val_frac=0.1, test_frac=0.1, seed=42):
+    """Stratified split of a synthetic dataset into train/val/test.
+
+    Stratification preserves class proportions across splits, which is
+    important when the synthetic distribution is intentionally skewed
+    (e.g. more frustration than neutral).
+    """
+    import random
+    from collections import defaultdict
+
+    rng = random.Random(seed)
+    by_label: dict = defaultdict(list)
+    for i, lab in enumerate(labels):
+        by_label[lab].append(i)
+
+    train_idx, val_idx, test_idx = [], [], []
+    for lab, idxs in by_label.items():
+        rng.shuffle(idxs)
+        n = len(idxs)
+        n_test = int(round(n * test_frac))
+        n_val  = int(round(n * val_frac))
+        test_idx.extend(idxs[:n_test])
+        val_idx.extend(idxs[n_test:n_test + n_val])
+        train_idx.extend(idxs[n_test + n_val:])
+
+    def gather(indices):
+        return ([texts[i] for i in indices], [labels[i] for i in indices])
+
+    return {
+        "train": gather(train_idx),
+        "val":   gather(val_idx),
+        "test":  gather(test_idx),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Training loop
 # ---------------------------------------------------------------------------
@@ -131,19 +193,34 @@ def train_model(
     freeze_epochs=2,
     unfreeze_top_n=4,
     checkpoint_dir="checkpoints",
+    checkpoint_name="roberta_text_only.pt",
     device=None,
+    train_data=None,
+    val_data=None,
+    use_class_weights=True,
 ):
-    """Full training pipeline. Returns (model, history)."""
+    """Full training pipeline. Returns (model, history).
+
+    If ``train_data`` / ``val_data`` are passed as ``(texts, labels)``
+    tuples, they are used directly. Otherwise the function falls back
+    to loading the MELD splits (legacy behaviour).
+    """
 
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Device: {device}")
 
     # --- Data ---
-    print("Loading MELD splits...")
-    train_texts, train_labels = load_meld_texts("train")
-    val_texts, val_labels = load_meld_texts("validation")
-    print(f"  Train: {len(train_texts)}, Val: {len(val_texts)}")
+    if train_data is not None and val_data is not None:
+        train_texts, train_labels = train_data
+        val_texts,   val_labels   = val_data
+        print(f"  Using injected data: train={len(train_texts)}, "
+              f"val={len(val_texts)}")
+    else:
+        print("Loading MELD splits...")
+        train_texts, train_labels = load_meld_texts("train")
+        val_texts, val_labels = load_meld_texts("validation")
+        print(f"  Train: {len(train_texts)}, Val: {len(val_texts)}")
 
     tokenizer = AutoTokenizer.from_pretrained("roberta-base")
 
@@ -163,13 +240,16 @@ def train_model(
     model.to(device)
 
     # --- Class weights for loss ---
-    counts = Counter(train_labels)
-    total = len(train_labels)
-    class_weights = torch.tensor(
-        [total / (NUM_CLASSES * counts[i]) for i in range(NUM_CLASSES)],
-        dtype=torch.float32,
-    ).to(device)
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
+    if use_class_weights:
+        counts = Counter(train_labels)
+        total = len(train_labels)
+        class_weights = torch.tensor(
+            [total / (NUM_CLASSES * counts.get(i, 1)) for i in range(NUM_CLASSES)],
+            dtype=torch.float32,
+        ).to(device)
+        criterion = nn.CrossEntropyLoss(weight=class_weights)
+    else:
+        criterion = nn.CrossEntropyLoss()
 
     # --- Optimizer (only trainable params initially = head + attn_pool) ---
     optimizer = torch.optim.AdamW(
@@ -272,7 +352,7 @@ def train_model(
         if wf1 > best_f1:
             best_f1 = wf1
             patience_counter = 0
-            ckpt_path = os.path.join(checkpoint_dir, "roberta_text_only.pt")
+            ckpt_path = os.path.join(checkpoint_dir, checkpoint_name)
             torch.save(model.state_dict(), ckpt_path)
             print(f"    -> New best W-F1={best_f1:.4f}, saved to {ckpt_path}")
         else:
@@ -289,15 +369,22 @@ def train_model(
 # Evaluation on test set
 # ---------------------------------------------------------------------------
 
-def evaluate_on_test(model, device=None, batch_size=32, split="test"):
-    """Evaluate model on a MELD split. Returns DataFrame with predictions."""
+def evaluate_on_test(model, device=None, batch_size=32, split="test",
+                     test_data=None):
+    """Evaluate model on a MELD split, or on injected ``(texts, labels)``.
+
+    Returns DataFrame with predictions.
+    """
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
     model.to(device)
     model.eval()
 
-    test_texts, test_labels = load_meld_texts(split)
+    if test_data is not None:
+        test_texts, test_labels = test_data
+    else:
+        test_texts, test_labels = load_meld_texts(split)
     tokenizer = AutoTokenizer.from_pretrained("roberta-base")
     test_ds = MeldTextDataset(test_texts, test_labels, tokenizer)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=0)

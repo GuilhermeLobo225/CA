@@ -21,6 +21,25 @@ tmp_speechbrain/
 data/raw/
 data/processed/*.png
 
+# Synthetic data (generated locally, large + costs API credits to regenerate)
+data/synthetic/audio/
+data/synthetic/*.wav
+data/synthetic/*.jsonl
+data/synthetic/manifest.csv
+data/synthetic/text_judged.jsonl
+data/synthetic/validation_*
+
+# API keys / secrets - never commit
+.env
+.env.local
+.env.*.local
+!.env.example
+configs/iaedu_accounts.json
+!configs/iaedu_accounts.example.json
+
+# Claude Code local settings (per-user, not for git)
+.claude/settings.local.json
+
 # Jupyter
 .ipynb_checkpoints/
 

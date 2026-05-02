@@ -19,7 +19,7 @@ import pandas as pd
 from tqdm import tqdm
 
 # Ensure project root is on sys.path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.classifiers.vader_classifier import VaderClassifier
 

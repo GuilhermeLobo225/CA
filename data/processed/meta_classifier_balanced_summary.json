@@ -1,0 +1,63 @@
+{
+  "checkpoint": "checkpoints\\meta_classifier_balanced.pkl",
+  "selection_rule": "max val frust_recall s.t. val weighted_f1 >= 0.55",
+  "best_pre_calibration": "LR_balanced",
+  "candidates": {
+    "LR_balanced": {
+      "val": {
+        "weighted_f1": 0.6254458175444505,
+        "macro_f1": 0.49487233070330694,
+        "frust_recall": 0.175,
+        "frust_precision": 0.25925925925925924,
+        "frust_f1": 0.208955223880597
+      },
+      "test": {
+        "weighted_f1": 0.6485452646717301,
+        "macro_f1": 0.47241333569253746,
+        "frust_recall": 0.14,
+        "frust_precision": 0.1206896551724138,
+        "frust_f1": 0.12962962962962962
+      }
+    },
+    "XGB_balanced": {
+      "val": {
+        "weighted_f1": 0.6159981069182652,
+        "macro_f1": 0.47770568097292426,
+        "frust_recall": 0.125,
+        "frust_precision": 0.29411764705882354,
+        "frust_f1": 0.17543859649122806
+      },
+      "test": {
+        "weighted_f1": 0.6467350731637839,
+        "macro_f1": 0.4635867227242986,
+        "frust_recall": 0.12,
+        "frust_precision": 0.18181818181818182,
+        "frust_f1": 0.14457831325301204
+      }
+    },
+    "MLP_balanced": {
+      "val": {
+        "weighted_f1": 0.6239797693730308,
+        "macro_f1": 0.49422615753439353,
+        "frust_recall": 0.175,
+        "frust_precision": 0.2916666666666667,
+        "frust_f1": 0.21875
+      },
+      "test": {
+        "weighted_f1": 0.646720162081881,
+        "macro_f1": 0.47164609298702426,
+        "frust_recall": 0.14,
+        "frust_precision": 0.1320754716981132,
+        "frust_f1": 0.13592233009708737
+      }
+    }
+  },
+  "final_test_after_calibration": {
+    "weighted_f1": 0.6491445742838766,
+    "macro_f1": 0.47489063399621817,
+    "frust_recall": 0.14,
+    "frust_precision": 0.1590909090909091,
+    "frust_f1": 0.14893617021276595
+  },
+  "min_weighted_f1": 0.55
+}

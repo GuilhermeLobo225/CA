@@ -768,6 +768,368 @@ out_prob, score, index, text_lab = classifier.classify_batch(audio_tensor)
 - 4 classes: angry, happy, sad, neutral
 - O SpeechBrain ja esta treinado — usamos apenas para inferencia
 
+### 9.6 CREMA-D (Fase 4)
+- 7 442 clips audio actuados, 91 actores (48 M + 43 F, idades 20-74)
+- 12 frases fixas (lexicalmente neutras) -> dataset puramente acustico
+- 6 emocoes: anger, disgust, fear, happy, neutral, sad
+- 4 niveis de intensidade (LO/MD/HI/XX)
+- 16 kHz mono WAV, 16-bit
+- Licenca: Open Database License (ODbL) v1.0 — totalmente publico
+- Download direto: https://github.com/CheyneyComputerScience/CREMA-D
+- Mapeamento default para as 5 classes-alvo:
+    ANG -> anger
+    DIS -> anger          (proxy)
+    FEA -> DROP           (acted fear != customer frustration)
+    HAP -> satisfaction
+    NEU -> neutral
+    SAD -> sadness
+- Loader: `src/data/load_cremad.py`, API analoga ao loader MELD
+- NAO contribui para treino de texto (frases fixas) — usar apenas como
+  augmentacao acustica do componente wav2vec2
+
 ---
 
-*Documento criado em 2026-04-04. Ultima atualizacao: 2026-04-04.*
+## 10. FASE 4 — Dataset Augmentation (30 Abril — 8 Maio)
+
+**Motivacao:** O ceiling de frustration recall (~14%) e provadamente um
+problema de dados, nao de modelo. SMOTE + class weights + calibration nao
+melhoram. As causas raiz:
+
+1. MELD nao tem classe `frustration` — usamos `fear` como proxy mas os
+   exemplos sao "please don't hurt me" tipo sitcom, nao frustracao de cliente.
+2. Apenas 268 amostras de frustration no train (3% do total).
+3. Dominio: sitcom Friends != call center.
+
+A Fase 4 ataca estes 3 pontos com (a) datasets publicos adicionais que
+nao requerem licenca academica, e (b) geracao sintetica controlada.
+
+### 10.1 Estrategia em 3 fontes
+
+```
+                    +-------------------+
+                    |   MELD (atual)    |  12 070 utterances reais
+                    +-------------------+
+                              |
+                              v  uniao no training set
+                    +-------------------+
+                    |  CREMA-D (publico)|  ~7 442 clips audio
+                    |  ODbL license     |  (apenas augmentacao audio)
+                    +-------------------+
+                              |
+                              v
+                    +-------------------+
+                    | Sintetico (gerado)|  10 000 ou 20 000 amostras
+                    |  LLM + TTS         |  (texto + audio)
+                    +-------------------+
+                              |
+                              v
+                    Multi-corpus training set
+                    com cross-corpus eval
+```
+
+### 10.2 Estado actual (2026-05-01)
+
+| Sub-fase | Estado | Notas |
+|---|:---:|---|
+| Loader CREMA-D | feito | `src/data/load_cremad.py`, smoke tests passam. Falta download dos .wav. |
+| Pipeline sintetico - setup | **feito** | 8 modulos em `src/data/synthetic/`, todos resumiveis e testados. |
+| Pipeline sintetico - text gen | **feito** | 21 213 / 21 217 amostras geradas via IAEDU/gpt-4o em ~2.5h. |
+| Pipeline sintetico - filter | em curso | Adapter judge com Ollama + mistral-small3.1 cableado, falta correr. |
+| Pipeline sintetico - audio | pendente | Aguarda fim do filter. |
+| Validacao humana | pendente | Listening test (200 amostras) apos audio. |
+| Re-treino RoBERTa multi-corpus | pendente | Apos sintetico validado. |
+| Re-treino meta + audio | pendente | Final. |
+| Ablation cross-corpus + docs | pendente | Final. |
+
+---
+
+### 10.3 Arquitetura final do pipeline sintetico
+
+```
+configs/iaedu_accounts.json     (4 contas IAEDU - api_key + channel_id)
+.env                            (Ollama endpoint, modelo, etc.)
+                |
+                v
++-------------------------------+
+| src/data/synthetic/           |
+|   __init__.py                 |
+|   config.py        <- BALANCE_TARGET_PER_CLASS, distribuicao, paths
+|   diversity.py     <- 5 eixos: intensity, cause, style, persona, turn
+|   _openai_client.py <- 3 pools: text(IAEDU), judge(Ollama), tts(OpenAI)
+|   text_normalize.py <- curly -> straight quotes / dashes / ellipsis
+|   generate_text.py <- 21k texto via IAEDU, --preview, resume incremental
+|   filter_text.py   <- heuristics + LLM-judge (Ollama, modelo independente)
+|   generate_audio.py <- TTS via OpenAI gpt-4o-mini-tts, 11 voices, instr.
+|   validate.py      <- listening test CLI: sample/annotate/score (kappa)
++-------------------------------+
+```
+
+**Pools de provedores** (em `_openai_client.py`):
+
+| Pool | Provider default | Razao | Fallback |
+|---|---|---|---|
+| `text` | IAEDU (4 contas, multipart streaming) | Free, ja usado no AP | OpenAI direta via `OPENAI_API_KEYS` |
+| `judge` | Ollama (`mistral-small3.1`) | Modelo independente do gerador, evita self-preference bias | IAEDU ou OpenAI via `JUDGE_PROVIDER` |
+| `tts` | OpenAI direta (`gpt-4o-mini-tts`) | IAEDU nao expoe TTS | - |
+
+---
+
+### 10.4 Distribuicao de classes (calculada para combinado balanceado)
+
+Sintetico gerado para que **MELD + sintetico = 6 000 por classe** (combinado totalmente balanceado, alvo configuravel via `SYNTH_BALANCE_TARGET`):
+
+| Classe | MELD train | Sintetico (gerado) | Combinado | % do gerado |
+|---|---:|---:|---:|---:|
+| anger | 1 380 | **4 618** | 5 998 | 21.8% |
+| frustration | **268** | **5 730** | 5 998 | 27.0% |
+| sadness | 683 | 5 317 | 6 000 | 25.1% |
+| neutral | 4 709 | 1 291 | 6 000 | 6.1% |
+| satisfaction | 1 743 | 4 257 | 6 000 | 20.1% |
+| **Total** | 8 783 | **21 213** | 29 996 | |
+
+(faltam 4 amostras = 0.02% por rate-limit transitorio; pode-se recuperar com re-run)
+
+---
+
+### 10.5 Cronograma actualizado (Fase 4)
+
+| Dia | Data | Tarefa | Estado |
+|---|---|---|:---:|
+| F0 | 29 Abril | Setup pipeline sintetico (8 modulos) | feito |
+| F1 | 30 Abril | Adapter IAEDU + 4-account pool | feito |
+| F2 | 1 Maio (manha) | Geracao 21k textos via IAEDU | feito |
+| F2 | 1 Maio (tarde) | Adapter Ollama judge + cabling | feito |
+| F3 | 2 Maio | Filtro completo (heuristics + Ollama judge ~3-4h) | proximo |
+| F4 | 3-4 Maio | Smoke test audio (50 clips) + decidir augmentacao canal | pendente |
+| F5 | 5 Maio | Geracao audio completa (21k via OpenAI TTS, ~10h) | pendente |
+| F6 | 6 Maio | Listening test (200 amostras, 3 anotadores, kappa) | pendente |
+| F7 | 7 Maio | Download CREMA-D + cross-corpus baseline | pendente |
+| F8 | 8 Maio | Re-treino RoBERTa em 4 condicoes + tabela comparativa | pendente |
+| F9 | 9 Maio | Re-treino meta + ablation cross-corpus + graficos | pendente |
+| F10 | 10-11 Maio | Atualizar README + relatorio + limpeza | pendente |
+
+---
+
+### 10.6 Resultados esperados
+
+| Configuracao | Test W-F1 | Frust Recall | Comentario |
+|---|---:|---:|---|
+| Baseline (MELD only) | 65% | 14% | Estado atual (medido) |
+| MELD + CREMA-D | 67% | 16% | +diversidade audio |
+| MELD + Sintetico | 69% | 45% | +frustration genuina (estimado) |
+| MELD + CREMA-D + Sintetico | 71% | 55% | All-in (alvo) |
+
+### 10.7 Riscos e mitigacoes
+
+| Risco | Probabilidade | Mitigacao |
+|---|:-:|---|
+| Self-preference bias do judge | (resolvido) | Judge usa Ollama mistral-small3.1, modelo diferente do gerador |
+| Sintetico colapsa em padroes | Media | 5 eixos forcados por amostra (4608 combinacoes para frustration); judge filtra |
+| TTS robotico -> aprendizagem de artefactos | Media | 11 voices distintas, instructions emocionais variadas, opcional telephone-band |
+| OOM no Ollama judge | Baixa | Fallback `phi4:latest` (9 GB) ou `JUDGE_PROVIDER=iaedu` |
+| Cross-corpus piora | Baixa | Test set fica MELD real; cross-corpus eval explicita |
+| kappa < 0.4 no listening test | Media | Iterar prompt; aceitavel se kappa > 0.4 |
+
+### 10.8 Checklist Fase 4
+
+**Infrastructure:**
+- [x] `src/data/load_cremad.py`
+- [x] `src/data/synthetic/__init__.py`
+- [x] `src/data/synthetic/config.py` (BALANCE_TARGET=6000, 5 axes, paths)
+- [x] `src/data/synthetic/diversity.py` (5 eixos com per-class rules)
+- [x] `src/data/synthetic/_openai_client.py` (3 pools: IAEDU/Ollama/OpenAI)
+- [x] `src/data/synthetic/text_normalize.py` (curly -> straight)
+- [x] `src/data/synthetic/generate_text.py` (com --preview, resume)
+- [x] `src/data/synthetic/filter_text.py` (heuristics + Ollama judge)
+- [x] `src/data/synthetic/generate_audio.py` (TTS, 11 voices, instructions)
+- [x] `src/data/synthetic/validate.py` (sample/annotate/score)
+- [x] `scripts/diagnose_api.py` (text + judge + tts pool tests)
+- [x] `scripts/peek_synthetic.py` (inspector)
+- [x] `configs/iaedu_accounts.{json,example.json}`
+- [x] `.env` + `.env.example` actualizados
+
+**Outputs:**
+- [x] `data/synthetic/text.jsonl` (21 213 amostras)
+- [ ] `data/synthetic/text_filtered.jsonl` (apos filter)
+- [ ] `data/synthetic/text_rejected.jsonl`
+- [ ] `data/synthetic/text_judged.jsonl` (cache)
+- [ ] `data/synthetic/audio/<label>/*.wav`
+- [ ] `data/synthetic/manifest.csv`
+- [ ] `data/synthetic/validation_results.csv` (listening test)
+- [ ] `data/synthetic/validation_report.json` (kappa)
+
+**Datasets externos:**
+- [ ] `data/raw/CREMA-D/AudioWAV/` (~580 MB, download manual)
+
+**Re-treino e ablation:**
+- [ ] `checkpoints/roberta_text_only_v2.pt`
+- [ ] `checkpoints/meta_classifier_v2.pkl`
+- [ ] `data/processed/cross_corpus_results.csv`
+- [ ] `data/processed/cross_corpus_results.png`
+
+---
+
+## 11. Session Log
+
+> Diario de sessoes de trabalho. Adicionar uma entrada NO TOPO depois de cada
+> sessao significativa, com data, duracao aproximada e resumo das mudancas.
+> Itens accionaveis para a sessao seguinte ficam em "**Proximo**".
+
+### Sessao 2026-05-02 (~tarde) — Re-train RoBERTa script (Day F8)
+
+**Feito:**
+- Refactor minimalista do `src/training/train_text.py`:
+  - Nova `load_synthetic_texts(jsonl_path)` -> (texts, labels).
+  - Nova `split_synthetic(texts, labels, val_frac, test_frac, seed)` —
+    split estratificado 80/10/10 por classe.
+  - `train_model()` aceita agora `train_data`, `val_data`,
+    `use_class_weights`, `checkpoint_name` (back-compat preservada).
+  - `evaluate_on_test()` aceita `test_data` para cross-corpus eval.
+- Criado `scripts/run_dayF8_retrain_roberta.py`:
+  - 4 condicoes: `meld_only`, `synth_only`, `combined`, `combined_cw`.
+  - Cada uma escreve `checkpoints/roberta_<condition>.pt`.
+  - Avalia cada checkpoint em **MELD test (gold)** e **synth test
+    (cross-corpus)**.
+  - Tabela final em `data/processed/dayF8_results.csv` + manifest JSON.
+- Smoke test: imports OK, CLI OK, split estratificado deterministico.
+  Synth filtered: 19 280 -> train 15 424, val 1 928, test 1 928.
+
+**Proximo (utilizador):**
+- [ ] `python scripts/run_dayF8_retrain_roberta.py` (~30-45 min na RTX
+  5060 Ti, treina as 4 condicoes em sequencia).
+- [ ] Inspeccionar `data/processed/dayF8_results.csv` para a tabela
+  comparativa.
+- [ ] Apos confirmacao do ganho em frust recall, avancar para
+  geracao de audio (B) e CREMA-D (C).
+
+### Sessao 2026-05-02 — Filtragem completa do sintetico
+
+**Feito:**
+- Recuperadas as 4 amostras em falta (`text.jsonl` agora tem 21 217).
+- `filter_text.py` correu com Ollama mistral-small3.1 como judge.
+- Resultados:
+  - 18 754 / 21 217 amostras tinham smart punctuation (normalizadas).
+  - Stage A (heuristics): 386 rejeitadas (banned phrases + axis leak).
+  - Stage B (judge): 1 551 rejeitadas (1545 low_judge_score + 4
+    unparseable + 2 timeouts).
+  - **Kept: 19 280 (90.9%)** -> `data/synthetic/text_filtered.jsonl`.
+- `data/synthetic/text_judged.jsonl` cache populado (resume-safe).
+
+**Distribuicao kept por classe:**
+| Classe | Kept | % retido |
+|---|---:|---:|
+| anger | 4 494 | 97.3% |
+| frustration | 5 621 | 98.1% |
+| sadness | 3 673 | 69.1% |
+| neutral | 1 235 | 95.7% |
+| satisfaction | 4 257 | 100.0% |
+
+Sadness teve filtragem mais forte - vale a pena investigar (judge mais
+exigente vs gerador menos convincente nesta classe).
+
+**Criado:**
+- `docs/projeto_estado_atual.md` (briefing para o colega que vai
+  escrever o relatorio). Cobre contexto, arquitectura, datasets,
+  resultados medidos, limitacoes, decisoes, bibliografia.
+
+**Proximo:**
+- [ ] Re-treinar RoBERTa com MELD + sintetico filtrado (4 condicoes:
+  MELD-only, synth-only, MELD+synth, MELD+synth+class_weights).
+- [ ] Criar `scripts/run_dayF8_retrain_roberta.py`.
+- [ ] Cross-corpus eval (treino MELD vs treino synth, test em ambos).
+- [ ] Apos: gerar audio sintetico (~10h, OPENAI_TTS_API_KEY necessario).
+- [ ] Em paralelo: download CREMA-D.
+
+### Sessao 2026-05-01 (~tarde) — Judge com Ollama (mistral-small3.1)
+
+**Feito:**
+- Adicionado `JUDGE_PROVIDER` (default `ollama`), `OLLAMA_BASE_URL`,
+  `SYNTH_JUDGE_MODEL` em `config.py`.
+- `_openai_client.py`: novo `_build_judge_pool()` com tres provedores
+  (ollama / iaedu / openai). Concurrency reduzida automaticamente para 2
+  quando provider e Ollama (uma so GPU).
+- `filter_text.py` agora pede `get_pool("judge")` em vez de `get_pool("text")`.
+  Argumento academico: judge != gerador -> sem self-preference bias.
+- `.env.example` e `scripts/diagnose_api.py` actualizados (3 stages: text,
+  judge, tts).
+- Smoke test offline passa (pool judge constroi sem erros).
+
+**Decisao:** modelo recomendado `mistral-small3.1:latest` (~14 GB Q4) por
+caber na RTX 5060 Ti 16 GB com folga. Alternativas no `.env.example`:
+gemma3:27b (top, mas borderline), phi4 (rapido), qwen3:14b, llama3.2.
+
+**Proximo:**
+- [ ] `ollama pull mistral-small3.1`
+- [ ] `python scripts/diagnose_api.py` → confirmar `Judge backend: OK`
+- [ ] `python -m src.data.synthetic.filter_text` (~3-4h)
+- [ ] Inspeccionar `text_rejected.jsonl` para ver razoes de filtragem
+- [ ] Decidir se vale a pena correr o gerador de novo para apanhar as 4
+  amostras em falta (0.02%, provavelmente nao)
+
+### Sessao 2026-05-01 (~manha) — Geracao de texto sintetico completa
+
+**Feito:**
+- IAEDU adapter implementado em `_openai_client.py` (`IAEduClient` com
+  interface OpenAI-compativel, multipart/form-data, NDJSON streaming,
+  filtragem de UUIDs e mensagens de processing, deteccao 429).
+- `configs/iaedu_accounts.{json,example.json}` com 4 contas (api_key +
+  channel_id pairs). Ficheiro real esta gitignored.
+- `scripts/diagnose_api.py` com 3 stages: env load, IAEDU per-account
+  test, TTS smoke test.
+- Pequeno bug fix: `peek_synthetic.py` deixou de usar mapping local e
+  agora importa de `src/data/synthetic/text_normalize.py` (single source
+  of truth). UTF-8 forcado no stdout para mostrar curly chars no Windows.
+- `text_normalize.py`: utilitario que converte aspas/dashes/ellipsis
+  smart para ASCII. Aplicado em "Stage 0" do `filter_text.py` para
+  garantir consistencia com o tokenizer do MELD.
+
+**Resultados:**
+- Run completo `generate_text.py` correu em ~2.5h via IAEDU 4 contas.
+- 21 213 / 21 217 amostras geradas (faltam 4, rate limits transitorios).
+- 0 duplicados, 0 textos vazios, 0 demasiado curtos/longos.
+- Word count: min=9, max=40, mediana=19, media=19.2.
+- Coverage diversity axes: 5/5 intensities, 12 styles, 16 causes,
+  6/6 personas, 4/4 turns.
+
+**Decisao:**
+- Distribuicao alterada para "balanceado pos-MELD" (alvo 6000 por classe
+  no combinado). Sintetico gera o defice exacto: 4620 anger, 5732
+  frustration, 5317 sadness, 1291 neutral, 4257 satisfaction.
+
+### Sessao 2026-04-30 — Setup do pipeline sintetico
+
+**Feito:**
+- 8 modulos novos em `src/data/synthetic/`.
+- `BALANCE_TARGET_PER_CLASS=6000` configuravel por env var.
+- 5 eixos de diversidade com per-class rules (`diversity.py`).
+- `--preview N` em `generate_text.py` para auditar prompts sem custo.
+- Resume incremental por amostra (JSONL append-only).
+- Pool round-robin com cooldown automatico em rate-limit.
+
+**Proximo:**
+- [x] Confirmar URL real do IAEDU (descoberto no extend.py do AP)
+- [x] Adapter IAEDU
+- [x] Run completo de texto
+
+### Sessao 2026-04-29 — Reorganizacao do projecto
+
+**Feito:**
+- `run_day*.py` movidos para `scripts/` (raiz limpa).
+- `src/training/train.py` (multimodal deprecated, importacoes partidas)
+  arquivado em `src/training/_deprecated/train_multimodal.py` com README.
+- READMEs adicionados em `scripts/` e `_deprecated/`.
+- `.env` criado a partir do template, `.gitignore` actualizado.
+- 26/26 modulos importam apos reorg.
+
+**Feito antes (Sessao 2026-04-27):**
+- Diagnostico do problema de dados: frustration=fear no MELD, ceiling 14%.
+- SMOTE + isotonic calibration testados, sem efeito (`train_meta_balanced.py`).
+- Comparacao 3 estrategias de fusao: late fusion bate score fusion (+1.2pp).
+- Demo Gradio (`src/demo/app.py`).
+- README reescrito.
+- Loader CREMA-D (`src/data/load_cremad.py`).
+- Plano original Fase 4.
+
+---
+
+*Documento criado em 2026-04-04. Ultima atualizacao: 2026-05-02 (filtragem completa).*
