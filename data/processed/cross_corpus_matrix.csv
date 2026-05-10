@@ -1,0 +1,16 @@
+modality,train,test,weighted_f1,frust_recall
+text,MELD only,MELD test,0.6062,0.2600
+text,MELD only,Synth test,0.4656,0.0036
+text,Synth only,MELD test,0.3934,0.4400
+text,Synth only,Synth test,0.8371,0.6530
+text,MELD + Synth,MELD test,0.6537,0.1800
+text,MELD + Synth,Synth test,0.8236,0.5587
+audio,Frozen (IEMOCAP),MELD test,,
+audio,Frozen (IEMOCAP),CREMA-D test,0.5364,
+audio,Frozen (IEMOCAP),Synth test,,
+audio,MELD + CREMA-D,MELD test,0.0933,0.6600
+audio,MELD + CREMA-D,CREMA-D test,0.3653,0.0000
+audio,MELD + CREMA-D,Synth test,0.1484,0.1569
+audio,MELD + CREMA-D + Synth,MELD test,0.4532,0.1400
+audio,MELD + CREMA-D + Synth,CREMA-D test,0.5366,0.0000
+audio,MELD + CREMA-D + Synth,Synth test,0.2843,0.9902

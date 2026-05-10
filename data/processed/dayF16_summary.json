@@ -1,0 +1,54 @@
+{
+  "ensemble_version": "v4",
+  "meta_classifier_v4": {
+    "best": "LR_balanced",
+    "calibrated_test": {
+      "weighted_f1": 0.6532197960645268,
+      "macro_f1": 0.4895743894237947,
+      "frust_recall": 0.16,
+      "frust_f1": 0.1951219512195122
+    }
+  },
+  "threshold_v4": {
+    "weights": {
+      "w_anger": 0.6,
+      "w_frust": 0.4
+    },
+    "optimal_threshold": 0.2,
+    "selection_rule": "max frust_recall s.t. precision > 0.50 (val)",
+    "validation_metrics": {
+      "handover_precision": 0.5859030837004405,
+      "handover_recall": 0.6186046511627907,
+      "handover_f1": 0.6018099547511313,
+      "frustration_recall": 0.575
+    },
+    "test_metrics": {
+      "handover_precision": 0.5042158516020236,
+      "handover_recall": 0.6457883369330454,
+      "handover_f1": 0.5662878787878789,
+      "frustration_recall": 0.46
+    }
+  },
+  "feature_schema": [
+    "prob_anger",
+    "prob_frust",
+    "prob_sadne",
+    "prob_neutr",
+    "prob_satis",
+    "goemo_anger",
+    "goemo_disgust",
+    "goemo_fear",
+    "goemo_joy",
+    "goemo_neutral",
+    "goemo_sadness",
+    "vader_pos",
+    "vader_neg",
+    "vader_neu",
+    "vader_compound",
+    "audio_anger",
+    "audio_frust",
+    "audio_sad",
+    "audio_neut",
+    "audio_satis"
+  ]
+}

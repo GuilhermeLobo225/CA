@@ -136,9 +136,16 @@ def _all_probs(split_df: pd.DataFrame) -> Dict[str, np.ndarray]:
 # ----------------------------------------------------------------------
 
 
-def score_fusion_predict(test_df: pd.DataFrame) -> np.ndarray:
-    """Use the Day-6 meta-classifier (concat features -> MLP)."""
-    bundle = joblib.load(os.path.join(CKPT_DIR, "meta_classifier.pkl"))
+def score_fusion_predict(test_df: pd.DataFrame,
+                         meta_path: str = None) -> np.ndarray:
+    """Use the saved meta-classifier (concat features -> MLP).
+
+    ``meta_path`` defaults to ``checkpoints/meta_classifier.pkl``; pass
+    ``checkpoints/meta_classifier_v2.pkl`` to use the v2 model.
+    """
+    if meta_path is None:
+        meta_path = os.path.join(CKPT_DIR, "meta_classifier.pkl")
+    bundle = joblib.load(meta_path)
     model = bundle["model"]
     feat_cols = bundle.get("feature_columns", FEATURE_COLUMNS)
     X = test_df[feat_cols].to_numpy(dtype=np.float32)
@@ -273,13 +280,43 @@ def _bar_chart(df: pd.DataFrame, out_path: str) -> None:
 # ----------------------------------------------------------------------
 
 
-def main() -> None:
+def parse_args(argv=None):
+    import argparse
+    p = argparse.ArgumentParser(
+        description="Compare 3 fusion strategies on a feature CSV trio."
+    )
+    p.add_argument("--features-suffix", default="",
+                   help="Suffix used by ensemble_features_*.csv "
+                        "(e.g. '_v2'). Default: '' (original features).")
+    p.add_argument("--meta-checkpoint", default=None,
+                   help="Path to meta_classifier .pkl. Defaults to "
+                        "checkpoints/meta_classifier{suffix}.pkl.")
+    p.add_argument("--output-suffix", default="",
+                   help="Suffix appended to output CSVs / plots / weights "
+                        "(e.g. '_v2'). Default: same as --features-suffix.")
+    return p.parse_args(argv)
+
+
+def main(argv=None) -> None:
+    args = parse_args(argv)
+    feat_suffix = args.features_suffix
+    out_suffix  = args.output_suffix or feat_suffix
+
+    meta_ckpt = args.meta_checkpoint or os.path.join(
+        CKPT_DIR, f"meta_classifier{feat_suffix}.pkl"
+    )
+
     print("=" * 72)
     print("  SmartHandover - Fusion-Strategy Comparison")
     print("=" * 72)
+    print(f"  features suffix : {feat_suffix or '(none)'}")
+    print(f"  output suffix   : {out_suffix or '(none)'}")
+    print(f"  meta checkpoint : {meta_ckpt}")
 
-    val_df  = pd.read_csv(os.path.join(DATA_DIR, "ensemble_features_val.csv"))
-    test_df = pd.read_csv(os.path.join(DATA_DIR, "ensemble_features_test.csv"))
+    val_df  = pd.read_csv(os.path.join(
+        DATA_DIR, f"ensemble_features_val{feat_suffix}.csv"))
+    test_df = pd.read_csv(os.path.join(
+        DATA_DIR, f"ensemble_features_test{feat_suffix}.csv"))
     y_val  = val_df["true_label_id"].to_numpy()
     y_test = test_df["true_label_id"].to_numpy()
 
@@ -298,9 +335,9 @@ def main() -> None:
     tie_order = [name for name, _ in rankings]
     print(f"  Tie-break order: {tie_order}")
 
-    # ----- Strategy 1: Score fusion (existing MLP)
-    print("\n[2/4] Strategy 1 - Score fusion (Day-6 MLP)")
-    s1_preds = score_fusion_predict(test_df)
+    # ----- Strategy 1: Score fusion (saved meta-classifier)
+    print(f"\n[2/4] Strategy 1 - Score fusion ({os.path.basename(meta_ckpt)})")
+    s1_preds = score_fusion_predict(test_df, meta_path=meta_ckpt)
     s1_m = compute_metrics(y_test, s1_preds, target_names=TARGET_LABELS)
 
     # ----- Strategy 2: Late/weighted-average fusion
@@ -335,8 +372,8 @@ def main() -> None:
     print(df.to_string(index=False, float_format=lambda v: f"{v:.4f}"))
 
     # CSV + chart
-    out_csv = os.path.join(DATA_DIR, "fusion_comparison.csv")
-    out_png = os.path.join(DATA_DIR, "fusion_comparison.png")
+    out_csv = os.path.join(DATA_DIR, f"fusion_comparison{out_suffix}.csv")
+    out_png = os.path.join(DATA_DIR, f"fusion_comparison{out_suffix}.png")
     df.to_csv(out_csv, index=False)
     _bar_chart(df, out_png)
     print(f"\n  CSV   -> {out_csv}")
@@ -344,7 +381,7 @@ def main() -> None:
 
     # Save the late-fusion weights for reproducibility
     import json
-    meta_path = os.path.join(DATA_DIR, "fusion_late_weights.json")
+    meta_path = os.path.join(DATA_DIR, f"fusion_late_weights{out_suffix}.json")
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump({"weights": s2_meta["weights"],
                    "tie_break_order": tie_order}, f, indent=2)

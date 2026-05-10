@@ -62,9 +62,17 @@ def compute_metrics(y_true, y_pred, target_names=None):
     y_true = np.array(y_true)
     y_pred = np.array(y_pred)
 
+    # Sklearn complains if y_true/y_pred contain fewer classes than
+    # target_names (common in cross-corpus eval where one of the labels
+    # may be absent, e.g. CREMA-D has no frustration). Force the full
+    # label set with labels=...
+    n_classes = len(target_names)
+    label_ids = list(range(n_classes))
+
     # Sklearn classification report as dict
     report = classification_report(
         y_true, y_pred,
+        labels=label_ids,
         target_names=target_names,
         output_dict=True,
         zero_division=0,
@@ -84,12 +92,14 @@ def compute_metrics(y_true, y_pred, target_names=None):
     # Frustration recall (the key metric for early stopping)
     frustration_recall = per_class.get("frustration", {}).get("recall", 0.0)
 
-    cm = confusion_matrix(y_true, y_pred, labels=list(range(len(target_names))))
+    cm = confusion_matrix(y_true, y_pred, labels=label_ids)
 
     return {
         "accuracy": accuracy_score(y_true, y_pred),
-        "weighted_f1": f1_score(y_true, y_pred, average="weighted", zero_division=0),
-        "macro_f1": f1_score(y_true, y_pred, average="macro", zero_division=0),
+        "weighted_f1": f1_score(y_true, y_pred, average="weighted",
+                                  labels=label_ids, zero_division=0),
+        "macro_f1": f1_score(y_true, y_pred, average="macro",
+                              labels=label_ids, zero_division=0),
         "per_class": per_class,
         "frustration_recall": frustration_recall,
         "confusion_matrix": cm,

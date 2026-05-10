@@ -1,0 +1,23 @@
+{
+  "weights": {
+    "w_anger": 0.6,
+    "w_frust": 0.4
+  },
+  "threshold": 0.2,
+  "window_size": 3,
+  "n_conversations": 279,
+  "n_with_negative": 170,
+  "n_clean": 109,
+  "n_caught": 155,
+  "n_missed": 15,
+  "n_false_handovers": 53,
+  "n_triggered_any": 208,
+  "conv_recall": 0.9117647058823529,
+  "conv_precision": 0.7451923076923077,
+  "conv_false_rate": 0.48623853211009177,
+  "mean_catch_latency_utt": -0.7612903225806451,
+  "trigger_reason_counts": {
+    "instant_strong_emotion": 207,
+    "sustained_negative_trend": 1
+  }
+}

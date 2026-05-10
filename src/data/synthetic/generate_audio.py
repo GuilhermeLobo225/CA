@@ -77,12 +77,35 @@ def _next_voice(label: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+# Default intensity scale (anger / frustration / generic). Energetic.
 _INTENSITY_TONE = {
-    1: "calm and even",
-    2: "slightly elevated",
-    3: "noticeably tense",
-    4: "agitated and forceful",
-    5: "very intense, on the edge of losing composure",
+    1: "calm and even, but still clearly engaged",
+    2: "slightly elevated, with hint of feeling",
+    3: "noticeably tense, with clear emotional weight",
+    4: "agitated and forceful, with sharp emphasis on key words",
+    5: "very intense, almost explosive, on the edge of losing composure",
+}
+
+# Class-specific intensity scales. The ``agitated/forceful/explosive``
+# language of the default scale is wrong for sadness (needs subdued
+# weight), satisfaction (needs warmth, not aggression), and high-end
+# neutral (which is still neutral, just attentive).
+_INTENSITY_TONE_BY_LABEL = {
+    "sadness": {
+        2: "softly resigned, low energy",
+        3: "noticeably weary and dejected, slow delivery",
+        4: "deeply hollow, near tears, very subdued",
+    },
+    "satisfaction": {
+        3: "warmly pleased, light positive tone",
+        4: "very grateful and relieved, warm energy (NOT aggressive)",
+        5: "deeply moved with relief, emotional but not loud",
+    },
+    "neutral": {
+        1: "calm and conversational",
+        2: "slightly engaged but still emotionally neutral",
+    },
+    # anger / frustration use the default scale (already energetic)
 }
 
 _LABEL_BASE = {
@@ -125,6 +148,20 @@ _STYLE_HINTS = {
     "warm":               "friendly and open",
 }
 
+# Style hints that need rephrasing when applied to specific emotions
+# (e.g. "polite_but_firm with steel underneath" makes no sense for a
+# crying customer; "exasperated/sigh" can read as agitated, which we
+# don't want for sadness).
+_STYLE_HINTS_BY_LABEL = {
+    "sadness": {
+        "tearful":         "voice on the edge of tears, wavering, slow delivery",
+        "exasperated":     "weary sigh, tired and slow delivery",
+        "rambling":        "drifting between thoughts, low energy throughout",
+        "polite_but_firm": "controlled and quietly resigned, restrained tone",
+    },
+    # other labels keep the default _STYLE_HINTS
+}
+
 _PERSONA_HINTS = {
     "young_informal":      "younger speaker, contemporary informal English",
     "elderly_formal":      "older speaker, slightly slower pace, formal phrasing",
@@ -142,6 +179,70 @@ _TURN_HINTS = {
 }
 
 
+# Class-specific closing instructions. The pacing/energy guidance
+# differs by emotion: aggressive emotions need momentum; subdued
+# emotions need weight and natural pauses.
+_CLOSING_BY_LABEL = {
+    "anger": (
+        "Be vividly expressive - DO NOT understate the anger. Speak "
+        "with energy and momentum; clipped pacing, sharp emphasis on "
+        "key words. AVOID long pauses or drawn-out delivery."
+    ),
+    "frustration": (
+        "Convey weariness and exasperation without flatness. Use a "
+        "natural conversational pace with audible tension. Avoid "
+        "drawn-out delivery; the speaker is impatient."
+    ),
+    "sadness": (
+        "Convey weight and resignation. Pace SLOWER than normal speech "
+        "but stay intelligible. Allow brief natural pauses that suggest "
+        "weariness. Voice should be subdued, NOT energetic - this is "
+        "NOT anger or frustration."
+    ),
+    "neutral": (
+        "Speak calmly and matter-of-factly. Natural conversational "
+        "pacing - not slow, not rushed. NO emotional colouring. The "
+        "speaker is making a routine remark, not upset."
+    ),
+    "satisfaction": (
+        "Speak with warm, relaxed energy. Natural pacing with a light, "
+        "positive tone. The speaker is grateful and at ease - not "
+        "agitated, not subdued."
+    ),
+}
+
+_CLOSING_DEFAULT = (
+    "Speak naturally with the indicated emotion at the indicated "
+    "intensity."
+)
+
+_UNIVERSAL_SUFFIX = (
+    "Sound like a real person on a phone call, not narrating. Single "
+    "take, no music or sound effects, no audible distortion."
+)
+
+
+def _intensity_phrase(label: str, intensity: int) -> str:
+    """Return the intensity description for ``label``, falling back to
+    the universal _INTENSITY_TONE if no label-specific override exists.
+    """
+    by_label = _INTENSITY_TONE_BY_LABEL.get(label, {})
+    if intensity in by_label:
+        return by_label[intensity]
+    return _INTENSITY_TONE.get(intensity, "moderate")
+
+
+def _style_phrase(label: str, style: str) -> str:
+    """Return the style description, with label-specific overrides
+    when the universal phrasing would contradict the emotion (e.g.
+    'polite_but_firm with steel underneath' is wrong for sadness).
+    """
+    by_label = _STYLE_HINTS_BY_LABEL.get(label, {})
+    if style in by_label:
+        return by_label[style]
+    return _STYLE_HINTS.get(style, style)
+
+
 def build_instruction(record: Dict) -> str:
     label = record["label"]
     intensity = int(record["intensity"])
@@ -149,16 +250,16 @@ def build_instruction(record: Dict) -> str:
     persona = record["persona"]
     turn = record["turn_position"]
 
+    closing = _CLOSING_BY_LABEL.get(label, _CLOSING_DEFAULT)
+
     parts = [
         _LABEL_BASE.get(label, ""),
-        f"Intensity: {_INTENSITY_TONE.get(intensity, 'moderate')} "
-        f"({intensity}/5).",
-        f"Style: {_STYLE_HINTS.get(style, style)}.",
+        f"Intensity: {_intensity_phrase(label, intensity)} ({intensity}/5).",
+        f"Style: {_style_phrase(label, style)}.",
         f"Persona: {_PERSONA_HINTS.get(persona, persona)}.",
         f"Turn position: {_TURN_HINTS.get(turn, turn)}.",
-        "Add small naturalistic disfluencies (a brief breath, an "
-        "occasional micro-pause). Do NOT shout to the point of "
-        "distortion. Single take, no music or sound effects.",
+        closing,
+        _UNIVERSAL_SUFFIX,
     ]
     return " ".join(p.strip() for p in parts if p)
 
@@ -352,9 +453,17 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument("--manifest", type=str, default=cfg.MANIFEST_OUT)
     p.add_argument("--audio-dir", type=str, default=cfg.AUDIO_DIR)
     p.add_argument("--workers", type=int, default=cfg.AUDIO_CONCURRENCY)
-    p.add_argument("--limit",   type=int, default=None)
+    p.add_argument("--limit",   type=int, default=None,
+                   help="Cap total samples after stratification.")
     p.add_argument("--label",   type=str, default=None,
                    choices=cfg.TARGET_LABELS)
+    p.add_argument("--max-per-class", type=int, default=None,
+                   help="Cap samples per class. Combine with stratified "
+                        "selection to control cost. Example: "
+                        "--max-per-class 2000 -> max 10 000 total clips.")
+    p.add_argument("--seed", type=int, default=42,
+                   help="Seed for stratified subsampling when --max-per-class "
+                        "is set (default 42).")
     p.add_argument("--no-resume", action="store_true")
     return p.parse_args(argv)
 
@@ -396,6 +505,30 @@ def main(argv: Optional[List[str]] = None) -> None:
     if args.label:
         records = [r for r in records if r["label"] == args.label]
         print(f"  filtered : {len(records)} (label={args.label})")
+
+    # --- Stratified per-class cap (cost control) -------------------------
+    if args.max_per_class is not None:
+        from collections import defaultdict
+        import random as _random
+        rng = _random.Random(args.seed)
+        by_class: dict = defaultdict(list)
+        for r in records:
+            by_class[r["label"]].append(r)
+        capped: List[Dict] = []
+        for label in cfg.TARGET_LABELS:
+            items = by_class.get(label, [])
+            rng.shuffle(items)
+            keep = items[:args.max_per_class]
+            capped.extend(keep)
+            print(f"    cap {label:<14s}: kept {len(keep):>5d} "
+                  f"(of {len(items)})")
+        records = capped
+        print(f"  after cap: {len(records)}")
+        # Estimated cost: smoke calibrated at ~€0.003 per clip (gpt-4o-mini-tts
+        # at ~7 s avg duration).
+        est_cost = len(records) * 0.003
+        print(f"  est. cost: ~€{est_cost:.2f}  (calibrated from smoke test)")
+
     if args.limit is not None:
         records = records[:args.limit]
         print(f"  limited  : {len(records)}")

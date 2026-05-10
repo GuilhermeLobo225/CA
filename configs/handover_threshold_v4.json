@@ -1,0 +1,20 @@
+{
+  "weights": {
+    "w_anger": 0.6,
+    "w_frust": 0.4
+  },
+  "optimal_threshold": 0.2,
+  "selection_rule": "max frust_recall s.t. precision > 0.50 (val)",
+  "validation_metrics": {
+    "handover_precision": 0.5859030837004405,
+    "handover_recall": 0.6186046511627907,
+    "handover_f1": 0.6018099547511313,
+    "frustration_recall": 0.575
+  },
+  "test_metrics": {
+    "handover_precision": 0.5042158516020236,
+    "handover_recall": 0.6457883369330454,
+    "handover_f1": 0.5662878787878789,
+    "frustration_recall": 0.46
+  }
+}

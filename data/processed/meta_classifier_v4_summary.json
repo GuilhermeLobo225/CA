@@ -1,0 +1,54 @@
+{
+  "best_name": "LR_balanced",
+  "selection_rule": "max val frust_recall s.t. val W-F1 >= 0.55",
+  "candidates": {
+    "LR_balanced": {
+      "val": {
+        "weighted_f1": 0.6300380983567806,
+        "macro_f1": 0.5042479611327676,
+        "frust_recall": 0.225,
+        "frust_f1": 0.20930232558139536
+      },
+      "test": {
+        "weighted_f1": 0.6520874577938783,
+        "macro_f1": 0.48258726824126796,
+        "frust_recall": 0.28,
+        "frust_f1": 0.16766467065868262
+      }
+    },
+    "XGB_balanced": {
+      "val": {
+        "weighted_f1": 0.6277257021495499,
+        "macro_f1": 0.50230087294578,
+        "frust_recall": 0.175,
+        "frust_f1": 0.27450980392156865
+      },
+      "test": {
+        "weighted_f1": 0.6414087699495404,
+        "macro_f1": 0.47125047797944797,
+        "frust_recall": 0.22,
+        "frust_f1": 0.15172413793103448
+      }
+    },
+    "MLP_balanced": {
+      "val": {
+        "weighted_f1": 0.617415725134418,
+        "macro_f1": 0.4942216802808013,
+        "frust_recall": 0.2,
+        "frust_f1": 0.23529411764705882
+      },
+      "test": {
+        "weighted_f1": 0.6226886830531996,
+        "macro_f1": 0.45718799966098145,
+        "frust_recall": 0.22,
+        "frust_f1": 0.12941176470588237
+      }
+    }
+  },
+  "calibrated_test": {
+    "weighted_f1": 0.6532197960645268,
+    "macro_f1": 0.4895743894237947,
+    "frust_recall": 0.16,
+    "frust_f1": 0.1951219512195122
+  }
+}

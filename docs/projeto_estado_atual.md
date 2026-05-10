@@ -279,6 +279,60 @@ A nível de **utterance** o frust recall é ~14%; a nível de **conversa** o
 recall sobe para 88.8% porque o sliding window agrega sinal ao longo do
 tempo. Esta é uma das histórias mais fortes para o relatório.
 
+### 7.6 Ensemble v2/v3/v4 — depois da geração sintética (Fases 1-10)
+
+Após geração de 19 280 amostras sintéticas (texto + áudio degradado
+phone-band) e fine-tune de RoBERTa e wav2vec2:
+
+| Versão | Componentes | Test W-F1 | Frust Recall (5-class) | Handover F1 | Frust Recall (handover binário) |
+|---|---|---:|---:|---:|---:|
+| v1 (baseline) | meld_only RoBERTa + frozen audio + meta MLP | 64.7% | 14.0% | 50.1% | 24.0% |
+| v2 | combined RoBERTa + frozen audio + meta MLP | 65.8% | 22.0% | 50.1% | 24.0% |
+| v3 | combined RoBERTa + fine-tuned audio (4 cols) + meta MLP | 64.7% | 14.0% | 50.1% | 24.0% |
+| **v4 (final)** | **combined RoBERTa + fine-tuned audio (5 cols) + meta LR + isotonic + threshold tuning** | **65.3%** | 16.0% | **56.6%** | **46.0%** |
+
+**v4** = melhor estado do projecto. As alavancas adicionadas em v4:
+- 20 features (5 RoBERTa + 6 GoEmo + 4 VADER + **5 audio nativas** em vez de 4 colapsadas)
+- Selecção de meta-classifier por **frust_recall** (LR balanced ganha)
+- **SMOTE** + **isotonic calibration** sobre o melhor candidate
+- **Threshold tuning per-weight**: w_anger=0.6, w_frust=0.4, t=0.20 (vs single threshold=0.30)
+
+### 7.7 Cross-corpus matrix (figura central do relatório)
+
+**Texto (Weighted F1):**
+| Train ↓ \ Test → | MELD test | Synth test |
+|---|---:|---:|
+| MELD only | 60.6% | 46.6% |
+| Synth only | 39.3% | 83.7% |
+| **MELD + Synth** | **65.4%** | **82.4%** |
+
+**Áudio (Weighted F1):**
+| Train ↓ \ Test → | MELD test | CREMA-D test | Synth test |
+|---|---:|---:|---:|
+| Frozen IEMOCAP | n/a | 53.6% | n/a |
+| MELD + CREMA-D | 9.3% | 36.5% | 14.8% |
+| **MELD + CREMA-D + Synth** | **45.3%** | **53.7%** | 28.4% |
+
+**Achados centrais para o relatório:**
+- Texto: MELD+Synth ganha em ambos os domínios (+4.7pp em MELD test, +35.8pp em Synth test face ao MELD-only). Validação quantitativa do sintético.
+- MELD frustration é fake: meld_only no synth_test recolhe **0.4%** de frust recall — o modelo treinado em fear-as-frustration não reconhece frustration genuína de call-center.
+- Áudio: o sintético foi **necessário para convergir** — sem ele o head re-iniciado colapsa em frustration sob class imbalance do MELD (W-F1=9% em MELD test).
+
+### 7.8 Handover a nível de conversa (v4 final — métrica de cabeçalho)
+
+| Métrica | v1 | **v4** | Δ |
+|---|---:|---:|---:|
+| Conv. recall | 88.8% | **91.2%** | +2.4 pp |
+| Conv. precision | 75.5% | 74.5% | -1.0 pp |
+| False handover rate | 45.0% | 48.6% | +3.7 pp |
+| Conversas apanhadas | 151 / 170 | **155 / 170** | +4 |
+| Mean catch latency | -0.5 utt | -0.76 utt | mais preventivo |
+
+**Headline:** *"O sistema apanha 91.2% das conversas que contêm
+frustração ou raiva, com 74.5% de precisão a nível de conversa, e
+antecipa o handover em média 0.76 utterances antes do primeiro turno
+negativo de ground-truth."*
+
 ---
 
 ## 8. Pipeline sintético — resultados (2026-05-02)
@@ -399,19 +453,30 @@ convincente. Pode ser uma secção de discussão no relatório.
 
 ## 11. Trabalho ainda por fazer
 
-Em ordem de prioridade:
+**Toda a parte técnica está concluída** (Fases 1-10 + simulação handover v4).
+Os 16 scripts `run_dayN*.py` correram, os 9 235 áudios sintéticos foram
+gerados (€28), o wav2vec2 foi fine-tuned em multi-corpus e o ensemble v4
+atinge 91.2% recall a nível de conversa.
 
-| # | Tarefa | Tempo | Output |
+Falta **apenas o trabalho de redacção/apresentação**:
+
+| # | Tarefa | Tempo | Quem |
 |---|---|---|---|
-| 1 | Re-treinar RoBERTa em **MELD train + sintético filtrado** (com cross-corpus eval) — script `scripts/run_dayF8_retrain_roberta.py` pronto | ~30-45 min | `checkpoints/roberta_<condition>.pt` (4 condições) + `data/processed/dayF8_results.csv` |
-| 2 | Re-construir features 19-dim, re-treinar meta-classifier | ~5 min | `meta_classifier_v2.pkl` |
-| 3 | Gerar **áudio sintético** via `gpt-4o-mini-tts` (~€30, ~10h) | ~10h em background | `data/synthetic/audio/<label>/*.wav` + manifest |
-| 4 | Download CREMA-D + indexar + cross-corpus baseline do componente áudio | ~1h | `cremad_speechbrain_predictions.csv` |
-| 5 | Listening test: 200 amostras, 3 anotadores, Cohen's kappa | ~2-3h dos 3 | `validation_report.json` |
-| 6 | Fine-tune wav2vec2 em MELD audio + CREMA-D + sintético áudio | ~3h GPU | `wav2vec2_finetuned.pt` |
-| 7 | Ablation cross-corpus (matriz 4×4): MELD/CREMA-D/sintético/all | ~1h | `cross_corpus_results.{csv,png}` |
-| 8 | (Opcional) Atualizar demo Gradio com novos modelos | ~30 min | `app.py` revisto |
-| 9 | Atualizar README.md, requirements.txt, configs/ para o estado final | ~30 min | docs alinhados |
+| 1 | Escrever **relatório** (15-20 páginas, baseado neste documento + secção 7.6/7.7/7.8) | ~3-5 dias | Colega A |
+| 2 | Slides apresentação (~10 slides) | ~1 dia | Colega A ou B |
+| 3 | Simulação handover detalhada para apresentação ao vivo | ~1 dia | Colega B |
+| 4 | (Opcional) Listening test pós-hoc com Cohen's kappa | ~2-3h dos 3 | Equipa |
+
+Itens **completos** de versões anteriores deste plano:
+- ✓ RoBERTa fine-tune multi-corpus (`roberta_combined.pt`)
+- ✓ Meta-classifier v2/v3/v4 (final: v4 calibrated, 20-dim)
+- ✓ 9 235 áudios sintéticos + 9 235 phone-band degradados
+- ✓ CREMA-D download + cross-corpus baseline (53.6% W-F1)
+- ✓ Wav2Vec2 fine-tune multi-corpus (with-synth + no-synth ablation)
+- ✓ Cross-corpus matrix (texto + áudio)
+- ✓ Ensemble v4 com threshold tuning per-weight
+- ✓ Demo Gradio adaptada para v4 (`src/demo/app.py` → `pipeline_v4`)
+- ✓ Simulação handover v4 a nível de conversa (91.2% recall)
 
 ---
 

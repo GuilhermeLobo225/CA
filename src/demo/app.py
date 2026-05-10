@@ -36,17 +36,17 @@ import numpy as np  # noqa: E402
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from src.classifiers.pipeline import SmartHandoverPipeline  # noqa: E402
+from src.classifiers.pipeline_v4 import SmartHandoverPipelineV4  # noqa: E402
 
-# Lazy-init: the heavy pipeline is built once, on first call.
-_pipeline: SmartHandoverPipeline | None = None
+# Lazy-init: the heavy v4 pipeline is built once, on first call.
+_pipeline: "SmartHandoverPipelineV4 | None" = None
 
 
-def _get_pipeline() -> SmartHandoverPipeline:
+def _get_pipeline() -> SmartHandoverPipelineV4:
     global _pipeline
     if _pipeline is None:
-        print("[demo] Loading SmartHandover pipeline (first call) ...")
-        _pipeline = SmartHandoverPipeline()
+        print("[demo] Loading SmartHandover v4 pipeline (first call) ...")
+        _pipeline = SmartHandoverPipelineV4()
     return _pipeline
 
 
@@ -133,20 +133,21 @@ def _format_details(out: Dict[str, Any]) -> str:
         lines.append(f"- {name_map.get(col, col)}: {val:.2%}")
     lines.append("")
 
-    # SpeechBrain (audio)
-    s = d["speechbrain"]
-    lines.append("**Audio (wav2vec2-IEMOCAP)**")
-    full = {"ang": "angry", "hap": "happy", "sad": "sad", "neu": "neutral"}
+    # Audio v4 (wav2vec2 fine-tuned, 5 native classes)
+    s = d.get("audio_v4") or d.get("speechbrain", {})
+    lines.append("**Audio (wav2vec2 fine-tuned, multi-corpus)**")
     for k, v in s.items():
-        lines.append(f"- {full.get(k, k)}: {v:.2%}")
+        lines.append(f"- {k}: {v:.2%}")
     return "\n".join(lines)
 
 
 def _format_timings(out: Dict[str, Any]) -> str:
     t = out["timings"]
+    audio_key = "audio_v4" if "audio_v4" in t else "speechbrain"
     lines = ["### Latency"]
-    for stage in ("asr", "vader", "goemo", "roberta", "speechbrain", "meta"):
-        lines.append(f"- **{stage}**: {t[stage] * 1000:.0f} ms")
+    for stage in ("asr", "vader", "goemo", "roberta", audio_key, "meta"):
+        if stage in t:
+            lines.append(f"- **{stage}**: {t[stage] * 1000:.0f} ms")
     lines.append(f"- **total**: {t['total'] * 1000:.0f} ms "
                  f"({'OK <2s' if t['total'] < 2 else 'SLOW (>2s)'})")
     return "\n".join(lines)

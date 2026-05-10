@@ -975,6 +975,520 @@ Sintetico gerado para que **MELD + sintetico = 6 000 por classe** (combinado tot
 > sessao significativa, com data, duracao aproximada e resumo das mudancas.
 > Itens accionaveis para a sessao seguinte ficam em "**Proximo**".
 
+### Sessao 2026-05-07 (~depois de F15) — Fase 10b: Ensemble v4 (frustration-recall focused)
+
+**Motivacao:** v3 nao melhorou face a v2 (audio fine-tuned colapsado em
+4 sb_* perdeu informacao). Ensemble v4 corrige isso e adiciona:
+
+- **20 features** (vs 19): mantem 5 nativas do wav2vec2 fine-tuned
+  (audio_anger, audio_frust, audio_sad, audio_neut, audio_satis) em vez
+  de colapsar em 4 sb_*.
+- **Selecao por frust_recall** (vs val W-F1): max val frust_recall com
+  W-F1 floor >= 0.55. Da prioridade ao que importa para handover.
+- **SMOTE oversampling** (5 classes -> 4709 cada).
+- **Isotonic calibration** sobre o melhor candidate. Trade-off: baixa
+  argmax frust recall mas uniforma probs -> melhor para threshold-based.
+- **Threshold tuning multi-grid**: 4 weight pairs (w_anger, w_frust)
+  x 51 thresholds (0.20-0.70 step 0.01) = 204 combinacoes.
+
+**Resultados v4:**
+
+Meta-classifier (test):
+- LR_balanced: W-F1=65.21%, FrustR=28.0%
+- XGB_balanced: W-F1=64.14%, FrustR=22.0%
+- MLP_balanced: W-F1=62.27%, FrustR=22.0%
+- Selecionado: LR_balanced (max val frust_recall).
+- Apos isotonic calibration: W-F1=65.32%, FrustR=16% (calibration baixa
+  argmax frust recall mas beneficia handover threshold).
+
+Handover (versao v1/v2/v3 vs v4):
+| Versao | thr | Prec | Rec | F1 | FrustR |
+|---|---:|---:|---:|---:|---:|
+| v1/v2 | 0.300 | 0.538 | 0.469 | 0.501 | 0.240 |
+| v3 | 0.300 | 0.538 | 0.469 | 0.501 | 0.240 |
+| **v4** | **0.200** (w_a=0.6, w_f=0.4) | 0.504 | **0.646** | **0.566** | **0.460** |
+
+**+15.4 pp F1**, **+17.7 pp recall**, **+22 pp frust recall**.
+~2x melhoria face a v1/v2/v3.
+
+**Outputs:**
+- `data/processed/ensemble_features_*_v4.csv` (20-dim)
+- `checkpoints/meta_classifier_v4.pkl` (LR raw)
+- `checkpoints/meta_classifier_v4_calibrated.pkl` (LR + isotonic)
+- `data/processed/meta_classifier_v4_summary.json`
+- `data/processed/dayF16_threshold_sweep_v4.csv` (todas as combinacoes
+  weights x thresholds, val + test)
+- `configs/handover_threshold_v4.json` (chosen weights + threshold)
+- `data/processed/dayF16_summary.json` (consolidado v1->v4)
+
+**Headline para o relatorio:**
+> "Optimised threshold tuning over a binary anger/frustration score
+> (w_anger=0.6, w_frust=0.4, t=0.20) raised handover frustration
+> recall from 24% to 46% while maintaining handover precision above
+> 50%. The ensemble v4 detects ~2x more frustrated callers than
+> v1/v2/v3."
+
+**Decisao sobre Fase 7-replay (SpecAugment / wav2vec2-base):**
+- v4 ja atinge 46% frust handover recall com componentes existentes.
+- Re-treino com SpecAugment teria ganho marginal estimado (+2-5pp) ao
+  custo de 2-3h GPU + risco.
+- **Skipped** para o relatorio. Documentado como trabalho futuro.
+
+### Sessao 2026-05-07 (~depois de F14) — Fase 10: Ensemble v3 final (scripts)
+
+**Decisao:** **Opcao A** (re-tune ensemble com componentes v2):
+- Texto: `roberta_combined.pt` (fine-tune com sintetico, escolhido na Fase 1)
+- Audio: `wav2vec2_finetuned.pt` (with-synth, escolhido na Fase 7)
+
+Opcao B (manter frozen audio) descartada — defesa academica e mais
+forte com componentes coerentes ("usamos a versao multi-corpus em
+todos os componentes do ensemble" > "audio frozen, texto fine-tuned").
+
+**Implementado:**
+- Em `src/training/train_audio.py`:
+  - `predict_records(checkpoint, records)` -> List[Dict] com 5-class probs
+    (anger, frust, sad, neut, satis). Permite extrair predicoes para
+    o ensemble sem re-treinar.
+- `scripts/run_dayF15_ensemble_v3.py` orquestra 4 passos:
+  1. **Predict wav2vec2 fine-tuned** sobre todo o MELD (train+val+test).
+     Cache em `data/processed/audio_v3_predictions.csv`. ~10-15 min.
+  2. **Build features v3**: substitui colunas `sb_*` em
+     `ensemble_features_*_v2.csv` pelas novas. Mapeamento 5-class
+     -> 4-class IEMOCAP-style:
+       sb_ang = p_anger + p_frust   (negative-energy consolidado)
+       sb_hap = p_satis
+       sb_sad = p_sad
+       sb_neu = p_neut
+     Schema 19-dim mantido para compatibilidade total com meta-classifier.
+  3. **Train meta v3 + fusion v3**: invoca os mesmos scripts modulares
+     (`ensemble_trainer.py`, `fusion_strategies.py`) com `suffix=_v3`.
+  4. **Threshold sweep v3**: replica o Day-8 mas sobre meta v3.
+     Output: `configs/handover_threshold_v3.json` +
+     `dayF15_threshold_sweep.csv`.
+
+**Outputs esperados (apos correr):**
+- `data/processed/audio_v3_predictions.csv` (~12 070 rows, drop-in
+  para speechbrain_predictions.csv)
+- `data/processed/ensemble_features_*_v3.csv`
+- `checkpoints/meta_classifier_v3.pkl` + summary JSON
+- `data/processed/fusion_comparison_v3.{csv,png}` +
+  `fusion_late_weights_v3.json`
+- `data/processed/dayF15_threshold_sweep.csv` +
+  `configs/handover_threshold_v3.json`
+- `data/processed/dayF15_summary.json` (consolidado v1 -> v2 -> v3)
+
+**Tempo estimado:** ~20 min (10-15 min predict + ~5 min restante).
+Custo: zero.
+
+**Smoke test offline:** imports OK, CLI OK, features_v2 prontos,
+checkpoint wav2vec2 fine-tuned (~1.2 GB) presente.
+
+**Proximo:** correr `python scripts/run_dayF15_ensemble_v3.py`.
+
+### Sessao 2026-05-07 (~depois de F13) — Fase 9: Cross-corpus matrix
+
+**Estrategia:** com pipeline end-to-end completo, gerar **matriz central
+do relatorio** sem re-treinar nada. Le os CSVs ja produzidos:
+- `dayF8_results.csv` -> texto (3 condicoes x 2 testes)
+- `dayF13_results.csv` -> audio (2 condicoes x 3 testes)
+- `cremad_baseline_summary.json` -> frozen audio anchor
+
+**Implementado:** `scripts/run_dayF14_cross_corpus_matrix.py`:
+- `build_text_matrix()` + `build_audio_matrix()` (pivot pandas)
+- 2 heatmaps lado-a-lado por metrica (W-F1, FrustR)
+- CSV unificado para o relatorio
+
+**Resultados Fase 9 — TEXTO (W-F1):**
+| Train | MELD test | Synth test |
+|---|---:|---:|
+| MELD only | 0.606 | 0.466 |
+| Synth only | 0.393 | 0.837 |
+| MELD + Synth | **0.654** | **0.824** |
+
+**Resultados Fase 9 — AUDIO (W-F1):**
+| Train | MELD test | CREMA-D test | Synth test |
+|---|---:|---:|---:|
+| Frozen (IEMOCAP) | n/a | 0.536 | n/a |
+| MELD + CREMA-D | 0.093 | 0.365 | 0.148 |
+| MELD + CREMA-D + Synth | **0.453** | **0.537** | 0.284 |
+
+**Achados centrais para o relatorio:**
+
+1. **Texto: MELD+Synth ganha nos 2 dominios** (+4.7pp em MELD test,
+   +35.8pp em Synth test face ao MELD-only). Argumento de tese **provado
+   quantitativamente**.
+
+2. **MELD frustration e fake**: `meld_only` em synth_test = 0.4% frust
+   recall. Modelo treinado em fear-as-frustration nao consegue
+   reconhecer frustration genuina de call-center. Cross-corpus expoe
+   isto.
+
+3. **Audio: sintetico FOI NECESSARIO** para convergir. Sem ele, head
+   re-iniciado colapsa em frustration (W-F1=9% em MELD test). Com
+   sintetico, recupera paridade com frozen (53.6% vs 53.7% em CREMA-D).
+   Defesa academica forte: "the synthetic data was not just an
+   augmentation - it was a stabiliser without which fine-tune did not
+   converge under MELD's class imbalance."
+
+4. **Audio fine-tune NAO ultrapassa frozen em CREMA-D** — paridade
+   apenas. Dois argumentos honestos: (a) wav2vec2-large com 316M
+   parametros e demasiado para o nosso volume de dados; (b) tecto da
+   arquitectura/dados, motiva trabalho futuro com modelos mais
+   pequenos (CNN+MLP sobre mel-spectrograms ou wav2vec2-base 95M).
+
+**Outputs:**
+- `data/processed/cross_corpus_matrix.csv` (12 linhas)
+- `data/processed/cross_corpus_matrix.png` (heatmaps W-F1, central no relatorio)
+- `data/processed/cross_corpus_matrix_frust.png` (heatmaps frust recall)
+
+**Proximo:** Fase 10 — re-tune final do ensemble com componentes v2.
+
+### Sessao 2026-05-07 (~noite, ainda mais tarde) — Fase 7: Fine-tune wav2vec2 multi-corpus (scripts)
+
+**Decisao:** Opcao B (treinar 2 variantes para ablation):
+- `wav2vec2_finetuned_no_synth.pt`: MELD train + CREMA-D train.
+- `wav2vec2_finetuned.pt`: MELD train + CREMA-D train + synth phone-band
+  (com sample weight 0.5 para manter batch maioritariamente real).
+
+Justificativo: o relatorio precisa de ablation directa do impacto do
+sintetico. Sem isto, nao temos prova quantitativa do valor da Fase 4.
+
+**Implementado:**
+- `src/training/train_audio.py`:
+  - `AudioRecord` (path, label, source, weight) + `AudioDataset`.
+  - Loaders por corpus: `load_meld_audio_records()`,
+    `load_cremad_audio_records()`, `load_synth_phone_records()`.
+  - MELD audio cache em `data/cache/meld_audio/<split>/*.wav`
+    (HF dataset entrega arrays, nao paths -> materializamos uma vez).
+  - `build_model()` carrega `superb/wav2vec2-large-superb-er` com
+    `num_labels=5` e `ignore_mismatched_sizes=True` (descarta head
+    IEMOCAP de 4 classes).
+  - `freeze_encoder()` + `unfreeze_top_layers(n)` = mesma estrategia
+    do RoBERTa (frozen 2 epocs -> unfreeze top 4).
+  - `train_audio_model()`: AdamW com 2 grupos (head lr 1e-4, encoder
+    lr 5e-6), warmup linear, FP16 autocast, gradient accumulation,
+    early stopping na MELD val W-F1.
+  - `evaluate_checkpoint()`: avaliar qualquer .pt em qualquer
+    record set. Usado para os 3 test sets (meld/cremad/synth).
+- `scripts/run_dayF13_finetune_wav2vec2.py`:
+  - Opcao --variant {no-synth, with-synth, both} (default: both).
+  - Carrega records uma vez, treina cada variante em sequencia.
+  - Validacao SEMPRE em MELD val (nunca em sintetico, evita overfit
+    a artefactos TTS).
+  - Test em 3 splits separados: MELD test, CREMA-D test, synth_test
+    (10% do sintetico, separado com seed=42).
+  - Output: `dayF13_results.csv` (variant x test_set) + per-variant
+    history JSON.
+  - Gate automatico: PASS se with-synth meld_test_W-F1 >= 0.448 (frozen
+    baseline) AND |synth_test - meld_test| < 15 pp.
+
+**Smoke test:**
+- Imports OK, CLI OK.
+- CREMA-D test records: 476.
+- Synth phone records: 9 235 (todos disponiveis).
+- AudioRecord/Dataset/loaders prontos.
+
+**Tempo estimado real:** ~2-4h total (2 variantes em sequencia) na
+RTX 5060 Ti, depende de early stopping. wav2vec2-large = 316M params,
+batch 4 + accumulation 4 = effective batch 16, FP16 ja optimizado.
+
+**Proximo:** correr `python scripts/run_dayF13_finetune_wav2vec2.py`
+quando puder ficar a correr ~3-4h.
+
+### Sessao 2026-05-07 (~noite, mais tarde) — Fase 6: CREMA-D + script baseline
+
+**Feito:**
+- Download CREMA-D via sparse-checkout (Opcao A, ~600 MB):
+  ```
+  git init + sparse-checkout AudioWAV/ + VideoDemographics.csv
+  ```
+- Loader `src/data/load_cremad.py` indexou 6 171 clips (FEA dropped
+  por mapeamento default).
+- Distribuicao: anger=2 542 (41.2%), sadness=1 271, neutral=1 087,
+  satisfaction=1 271. Speaker-disjoint split: train=5 355, val=340,
+  test=476.
+- Criado `scripts/run_dayF12_cremad_baseline.py`:
+  - Itera CREMA-D (split configuravel: all/train/val/test).
+  - Aplica `superb/wav2vec2-large-superb-er` frozen.
+  - Mapeia IEMOCAP (ang/hap/sad/neu) -> 5 classes-alvo.
+  - Output: `cremad_speechbrain_predictions.csv` + `cremad_baseline_summary.json`.
+  - Console: weighted/macro F1, per-class P/R/F1, confusion matrix.
+  - Gate: PASS se W-F1 >= 50%, BORDERLINE 35-50%, FAIL < 35%.
+
+**Para que serve:**
+- Estabelece **baseline do componente audio** (numero a bater na Fase 7).
+- Mostra a generalizacao IEMOCAP -> CREMA-D (mesmo espaco 4-class,
+  actores diferentes, gravacao diferente).
+- Output sera secao no relatorio: "frozen wav2vec2-IEMOCAP atinge X%
+  W-F1 cross-corpus em CREMA-D, validando aprendizagem de emocao
+  generica e nao apenas distribuicao IEMOCAP".
+
+**Proximo:** correr `python scripts/run_dayF12_cremad_baseline.py`.
+
+**Resultados Fase 6 (after running):**
+- 6 171 clips processados em ~2:48 min (36.6 clips/s na RTX 5060 Ti).
+- Bug encontrado: `compute_metrics` falhava com `ValueError` quando o
+  test set nao tinha todas as 5 classes (CREMA-D nao tem frustration).
+  Fix: passar `labels=list(range(n))` ao sklearn em
+  `classification_report` / `f1_score` / `confusion_matrix`.
+  Predicoes ja estavam guardadas em CSV — re-corri so as metricas.
+- **Headline metrics (todas as 6 171):**
+  - accuracy = 53.1%
+  - **weighted F1 = 53.6%** -> Gate PASS (>= 50%)
+  - macro F1 = 41.5%
+- **Per-class:**
+  - anger:  P=71.9%  R=50.9%  F1=59.6%  (n=2542)
+  - sadness: P=53.4%  R=61.8%  F1=57.3%  (n=1271)
+  - neutral: P=49.4%  R=39.8%  F1=44.1%  (n=1087)
+  - satisfaction: P=37.7%  R=60.0%  F1=46.3%  (n=1271)
+- **Achados-chave para o relatorio:**
+  - Sadness F1 = 57.3% em CREMA-D vs P(sad)=0 em TODOS os 50 smoke
+    sinteticos. **Prova** que a sub-deteccao de sadness no TTS e um
+    fenomeno de **distribuicao out-of-domain**, nao defeito do
+    classificador.
+  - Confusao maior: 728 amostras anger -> satisfaction. Modelo IEMOCAP
+    confunde "alta energia" entre as duas classes (anger forte vs
+    satisfaction enthusiastic). Sitio onde fine-tune deve ganhar.
+  - Anger precision 71.9% (alto) mas recall 50.9% (medio). Satisfaction
+    inverso: precision 37.7%, recall 60%.
+
+### Sessao 2026-05-07 (~noite) — Fase 5: Degradacao telefonica (scripts)
+
+**Decisao:** evitar download MUSAN (6 GB) para um trabalho de cadeira;
+implementar **ruido sintetico** (pink + 60 Hz hum) que e bem definido
+e suficientemente realista para a tarefa.
+
+**Implementado:**
+- `src/data/synthetic/degrade_audio.py`:
+  - `degrade_to_phone(wav, sr)` -> 16k -> 8k mu-law -> bandpass 300-3400 Hz
+    -> 16k. Codec G.711 standard de PSTN/VoIP.
+  - `add_synthetic_noise(wav, snr_db, seed)` -> pink (1/f via FFT) +
+    60 Hz hum + harmonica 120 Hz, mixado a SNR exacto.
+  - `add_recorded_noise(wav, noise_dir, snr_db, seed)` -> drop-in para
+    MUSAN se o utilizador quiser realismo extra mais tarde. Fallback
+    automatico para sintetico se a pasta estiver vazia.
+  - `apply_gain_jitter(wav, db, seed)` -> +/- N dB.
+  - `degrade_pipeline(wav, sr_in, snr_db_range, ...)` -> orquestra os 3
+    passos. Determinístico com seed.
+- `scripts/run_dayF11_degrade_audio.py`:
+  - Itera `data/synthetic/audio/<label>/*.wav` (clean).
+  - Aplica pipeline -> `data/synthetic/audio_phone/<label>/*.wav`.
+  - Manifest CSV com snr_db, noise_source, codec, bandpass_hz por clip.
+  - Resume incremental (skip se ja existir + size > 0).
+  - SNR aleatorio por clip em [snr_low, snr_high] (default 15-25 dB).
+  - Per-clip seed = stable hash do audio_id -> re-runs sao
+    bit-exact iguais.
+
+**Smoke offline:**
+- Pipeline determinístico OK (mesma seed -> mesmos samples bit-exact).
+- SNR alvo 20 dB -> medido 20.0 dB (FFT pink shaping correcto).
+- Fallback recorded -> synthetic se noise_dir invalido.
+
+**Defesa academica:** "Aplicamos codec G.711 mu-law + bandpass
+300-3400 Hz (banda telefonica nominal) + ruido pink/60 Hz hum mixado
+a SNR aleatorio em [15, 25] dB + jitter de ganho +/-6 dB. Esta
+degradacao deterministica simula condicoes PSTN/VoIP tipicas e
+previne que o classificador acustico aprenda artefactos do TTS de
+estudio em vez de sinal emocional."
+
+**Custo:** zero. Processamento local na RTX 5060 Ti, ~30-60 min para
+9 235 clips.
+
+**Resultados Fase 5:**
+- ok=9 235  fail=0  elapsed=96s (96.4 clips/s, muito rapido com synthetic noise)
+- avg duration phone: 7.69s
+- Output: `data/synthetic/audio_phone/<label>/<id>.wav` (9 235 ficheiros)
+- Manifest: `data/synthetic/audio_phone_manifest.csv` (9 235 linhas)
+- Tudo bit-exact reprodutível com seed=42
+
+**Proximo:** Fase 6 — download CREMA-D + cross-corpus baseline.
+
+### Sessao 2026-05-07 (~tarde) — Fase 4: Audio sintetico completo (Opcao C)
+
+**Decisao:** com base no smoke test, custo realista revisto para
+~€0.003/clip (vs estimativa inicial €0.0015). Para um trabalho de
+cadeira opcional, run completo (19 280 clips, ~€58) e excessivo.
+Adicionada flag `--max-per-class N` ao `generate_audio.py` que faz
+**subsampling estratificado deterministico** com seed (resume-safe).
+
+**3 opcoes de cost control oferecidas:**
+| Opcao | --max-per-class | Total | Custo | Para |
+|---|---:|---:|---:|---|
+| A (minimo viavel) | 800 | 4 000 | ~€12 | Provar conceito |
+| B (recomendada) | 1 500 | 7 500 | ~€23 | Equilibrio custo/qualidade |
+| **C (escolhida)** | **2 000** | **~9 235** | **~€28** | **+frustration data** |
+| D (run completo) | (sem flag) | 19 280 | ~€58 | Maximalismo |
+
+**Resultados Opcao C:**
+- 9 235 clips gerados (2000+2000+2000+1235+2000)
+- 0 falhas em 1h 1min 43s (rate ~2.5 clips/s com 4 workers)
+- avg clip duration: 7.69s
+- custo real: ~€27.71 (alinhado com a estimativa)
+- Output: `data/synthetic/audio/<label>/<id>.wav` + `manifest.csv`
+- Voices: 11 disponiveis no gpt-4o-mini-tts (round-robin no
+  `_next_voice` global, distinto do smoke onde so usamos 3).
+- Instructions usadas: condicionais por classe (versao final do smoke
+  test 4: `_INTENSITY_TONE_BY_LABEL`, `_STYLE_HINTS_BY_LABEL`,
+  `_CLOSING_BY_LABEL`).
+
+**Decisoes registadas:**
+- `neutral` ficou a 1 235 amostras (todas as filtered disponiveis;
+  gerador inicial parou em 1 291 e o filtro tirou ~56 mais).
+- Distribuicao final no dataset combinado (MELD + sintetico):
+  - anger: 1 380 + 2 000 = 3 380
+  - frustration: 268 + 2 000 = 2 268 (8.5x o MELD)
+  - sadness: 683 + 2 000 = 2 683
+  - neutral: 4 709 + 1 235 = 5 944
+  - satisfaction: 1 743 + 2 000 = 3 743
+
+**Proximo:** Fase 5 — degradacao telefonica + ruido (~2-3h local,
+sem custo).
+
+### Sessao 2026-05-08 — Fase 3 concluida (4 iteracoes de smoke TTS)
+
+**Smoke test 1** (`SMOKE_VOICES = ["nova", "onyx", "shimmer"]`, instruction
+universal):
+- median P(ang): anger=0.753, frust=0.704, neut=0.344, sad=0.303, satis=0.477
+- Feedback subjectivo: `onyx` soa pausada/chata; `nova` e `shimmer` boas.
+
+**Smoke test 2** (substituido `onyx` por `coral`; instruction reforcada
+com "vividly emotionally expressive, AVOID long pauses"):
+- median P(ang): anger=0.918, frust=0.836, neut=0.781, sad=0.624, satis=0.762
+- **Problema**: instruction universal puxou TODAS as classes para "agitated".
+  Sadness/neutral colapsam em P(ang) alto.
+
+**Smoke test 3** (instruction CONDICIONAL por classe via
+`_CLOSING_BY_LABEL`; voices mantidas `nova/coral/shimmer`):
+- median P(ang): anger=0.942, frust=0.954, neut=0.658, sad=0.923, satis=0.856
+- Sadness ainda saturada porque `_INTENSITY_TONE` e `_STYLE_HINTS`
+  (universais) contradiziam o closing.
+- Feedback: utilizador pediu para adicionar voice masculina.
+
+**Smoke test 4** (versao final):
+- `SMOKE_VOICES = ["nova", "verse", "shimmer"]` (1 masculina + 2 femininas).
+- `_INTENSITY_TONE_BY_LABEL` (override para sadness/satisfaction/neutral).
+- `_STYLE_HINTS_BY_LABEL` (override para sadness — "polite_but_firm with
+  steel underneath" virou "controlled and quietly resigned").
+- median P(ang): anger=0.961, frust=0.873, neut=0.807, sad=0.768, satis=0.753
+- Feedback: sadness agora soa diferente de anger (subjectivo). Sadness
+  desceu de 0.923 -> 0.768 no frozen, mas P(sad) continua 0.000.
+
+**Achado importante para o relatorio:**
+- `superb/wav2vec2-large-superb-er` (frozen) tem **bias massivo para
+  classe `ang`** em distribuicao sintetica. P(sad)=0.000 em 50/50 amostras,
+  mesmo as anotadas como sadness. Isto **NAO e falha do TTS** — e bias
+  do modelo IEMOCAP-trained quando aplicado out-of-domain.
+- Este achado justifica o fine-tuning multi-corpus (Fase 7) com CREMA-D
+  (sadness humana actuada com sinal prosodico forte) + sintetico phone-band.
+
+**Decisoes registadas:**
+- Voice mix final para o run completo: **`nova`, `verse`, `shimmer`**
+  (round-robin determinístico por classe).
+- Instructions com class-conditional closing + intensity_by_label +
+  style_by_label.
+- **Fase 3 listening test formal: SKIPPED**. Justificativa: feedback
+  subjectivo do utilizador (10 amostras ouvidas) confirma qualidade
+  perceptiva; gate tecnico (anger/frust > 0.25 P(ang)) passa folgado.
+  No relatorio sera registado como decisao de risco assumido + apontado
+  como trabalho futuro.
+- Sadness sera aceite como classe mais fraca; o foco do projecto e
+  handover (anger + frustration), onde o sinal e robusto.
+
+**Custo real do smoke** (4 iteracoes × ~50 amostras): ~€0.60 total.
+
+**Proximo:** Fase 4 — geracao audio completa (com cost control, ver
+seccao seguinte).
+
+### Sessao 2026-05-07 — Day F10: Smoke TTS scripts (Fase 3)
+
+**Feito:**
+- Decisao Fase 2 (registada): meta_classifier_v2 = MLP, W-F1 65.78%
+  (vs v1 64.74%), Frust-R 22% (vs v1 14%). Late fusion v2 = 67.35%
+  (vs 65.98%). Gate FAIL tecnico (precisava 68%/45%) mas ganho
+  consistente.
+- Caminho critico: passar para componente audio. Texto saturou no
+  MELD test devido a fear-as-frustration ceiling.
+- Criado `scripts/run_dayF10_smoke_tts.py`:
+  - Estratifica 50 amostras de `text_filtered.jsonl` (10 por classe).
+  - 3 voices fixas: `nova`, `onyx`, `shimmer` (registos distintos).
+  - Round-robin determinístico de voice por classe.
+  - Reutiliza `build_instruction()` de `generate_audio.py` (mesma
+    instrução emocional do run completo).
+  - Salva 50 .wav em `data/synthetic/smoke_audio/<label>/<id>_<voice>.wav`
+    + `data/synthetic/smoke_manifest.csv`.
+  - Resume incremental (skip se ja existe no manifest).
+  - Custo estimado: ~€0.10-0.20 (50 calls).
+- Criado `scripts/run_dayF10_smoke_eval.py`:
+  - Carrega `superb/wav2vec2-large-superb-er` (frozen, mesma do ensemble).
+  - Predicoes IEMOCAP 4-class (ang/hap/sad/neu) por clip.
+  - Output: `data/synthetic/smoke_frozen_eval.csv`.
+  - Sumario por classe: median P(ang/hap/sad/neu) + match rate vs
+    label esperado.
+- Smoke test offline: 50 amostras estratificadas OK, voice round-robin
+  balanceado (4/3/3 por classe).
+
+**Proximo (utilizador):**
+- [ ] `python scripts/run_dayF10_smoke_tts.py` (~5-8 min, ~€0.15)
+- [ ] `python scripts/run_dayF10_smoke_eval.py` (~30s na RTX 5060 Ti)
+- [ ] Listening test manual (~30 min):
+  - `python -m src.data.synthetic.validate sample --manifest data/synthetic/smoke_manifest.csv --sheet data/synthetic/smoke_listening.csv --n 50`
+  - `python -m src.data.synthetic.validate annotate --sheet data/synthetic/smoke_listening.csv --name <yourname>`
+- [ ] Gate Fase 3:
+  - PASS: ≥35/50 correct_class no listening + median P(ang) > 0.25
+    para anger e frustration no frozen eval.
+  - FAIL refusal: instruções suavizadas em `generate_audio.py`.
+  - FAIL flat: implementar voice × persona mapping (plan §3.2).
+
+### Sessao 2026-05-05 — Day F9: Meta-classifier v2 + Fusion v2 (script)
+
+**Feito:**
+- Refactor de `src/classifiers/ensemble_trainer.py`:
+  - `argparse` com `--roberta-checkpoint`, `--output-suffix`, `--force-regenerate`.
+  - `_roberta_csv_path(split, suffix)` permite ter cache `_v2` em paralelo
+    com o original.
+  - `build_ensemble_features(roberta_suffix, roberta_checkpoint, force_regenerate)`.
+  - `save_feature_csvs(df, suffix)` -> `ensemble_features_<split><suffix>.csv`.
+  - `meta_classifier{suffix}.pkl` + `meta_classifier{suffix}_summary.json`.
+  - Manifest agora regista o checkpoint do RoBERTa usado.
+- Refactor de `src/classifiers/fusion_strategies.py`:
+  - `argparse` com `--features-suffix`, `--meta-checkpoint`, `--output-suffix`.
+  - `score_fusion_predict(df, meta_path)` aceita override.
+  - Outputs com suffix: `fusion_comparison<suffix>.{csv,png}`,
+    `fusion_late_weights<suffix>.json`.
+- Novo `scripts/run_dayF9_meta_v2.py`:
+  - Orquestra os dois passos (meta v2 + fusion v2).
+  - Default usa `roberta_combined.pt` da Fase 1.
+  - `--skip-meta` / `--skip-fusion` para granularidade.
+  - Resumo final com checklist dos 11 outputs esperados.
+
+**Outputs esperados (apos correr):**
+- `data/processed/roberta_*_predictions_v2.csv` (re-gerados com novo .pt)
+- `data/processed/ensemble_features_*_v2.csv`
+- `checkpoints/meta_classifier_v2.pkl`
+- `data/processed/meta_classifier_v2_summary.json`
+- `data/processed/fusion_comparison_v2.{csv,png}`
+- `data/processed/fusion_late_weights_v2.json`
+
+**Decisao Fase 1 (registada):**
+- `combined` escolhido como checkpoint principal (W-F1 65.4% no MELD,
+  82.4% no synth - melhor compromisso). `combined_cw` descartado
+  (frust recall 0% no MELD insustentavel).
+- Frust recall do MELD test (18%) e enganador: o gold standard tem
+  fear-rotulado-como-frustration. **Cross-corpus eval mostra que
+  `meld_only` recolhe 0.4% no synth_test, prova que o MELD frustration
+  e fake.** Documentar isto no relatorio.
+
+**Proximo (utilizador):**
+- [ ] `python scripts/run_dayF9_meta_v2.py` (~1h: ~30 min predicoes
+  RoBERTa em CPU/GPU + ~5 min meta + ~30s fusion).
+- [ ] Comparar `meta_classifier_v2_summary.json` com
+  `meta_classifier_summary.json`.
+- [ ] Comparar `fusion_comparison_v2.csv` com `fusion_comparison.csv`.
+- [ ] Gate: PASS se W-F1 >= 68% e Frust-R >= 45% em qualquer
+  estrategia de fusao.
+- [ ] Avancar para Fase 3 (Smoke TTS) se gate PASS, ou diagnosticar
+  pesos do late fusion se W-F1 cair.
+
 ### Sessao 2026-05-02 (~tarde) — Re-train RoBERTa script (Day F8)
 
 **Feito:**

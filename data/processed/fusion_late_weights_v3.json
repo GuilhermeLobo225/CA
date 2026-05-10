@@ -1,0 +1,14 @@
+{
+  "weights": {
+    "roberta": 0.5,
+    "goemo": 0.5,
+    "vader": 0.3,
+    "speechbrain": 0.5
+  },
+  "tie_break_order": [
+    "roberta",
+    "goemo",
+    "speechbrain",
+    "vader"
+  ]
+}

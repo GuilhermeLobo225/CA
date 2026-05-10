@@ -145,38 +145,60 @@ def _load_aligned_raw_csvs() -> pd.DataFrame:
     return df
 
 
-def _load_roberta_predictions(split: str) -> pd.DataFrame:
+def _roberta_csv_path(split: str, suffix: str = "") -> str:
+    """Return the canonical path of a RoBERTa-predictions CSV.
+
+    ``suffix`` is inserted before the extension (e.g. ``"_v2"`` ->
+    ``roberta_train_predictions_v2.csv``).
+    """
+    base_map = {
+        "train": "roberta_train_predictions",
+        "val":   "roberta_val_predictions",
+        "test":  "roberta_predictions",
+    }
+    return os.path.join(DATA_DIR, f"{base_map[split]}{suffix}.csv")
+
+
+def _load_roberta_predictions(
+    split: str,
+    suffix: str = "",
+    roberta_checkpoint: str = None,
+    force_regenerate: bool = False,
+) -> pd.DataFrame:
     """Load the RoBERTa prediction CSV for a given split.
 
     Falls back to *generating* the predictions with the fine-tuned model if
-    the CSV does not exist (only common case is the training split, which
-    Day 4 did not export by default).
+    the CSV does not exist or ``force_regenerate=True``.
     """
-    path_map = {
-        "train": os.path.join(DATA_DIR, "roberta_train_predictions.csv"),
-        "val":   os.path.join(DATA_DIR, "roberta_val_predictions.csv"),
-        "test":  os.path.join(DATA_DIR, "roberta_predictions.csv"),
-    }
-    csv_path = path_map[split]
+    csv_path = _roberta_csv_path(split, suffix=suffix)
 
-    if not os.path.exists(csv_path):
-        print(f"  [INFO] RoBERTa {split} predictions not found at {csv_path}")
-        print(f"  [INFO] Generating with checkpoints/roberta_text_only.pt ...")
-        _generate_roberta_predictions_for_split(split, csv_path)
+    if force_regenerate or not os.path.exists(csv_path):
+        ckpt = roberta_checkpoint or os.path.join(CKPT_DIR, "roberta_text_only.pt")
+        if not os.path.exists(csv_path):
+            print(f"  [INFO] RoBERTa {split} predictions not found at {csv_path}")
+        else:
+            print(f"  [INFO] --force-regenerate -> overwriting {csv_path}")
+        print(f"  [INFO] Generating with {ckpt} ...")
+        _generate_roberta_predictions_for_split(split, csv_path,
+                                                checkpoint_path=ckpt)
 
     return pd.read_csv(csv_path)
 
 
-def _generate_roberta_predictions_for_split(split: str, out_path: str) -> None:
-    """Run the fine-tuned RoBERTa on a MELD split and write predictions CSV."""
+def _generate_roberta_predictions_for_split(
+    split: str,
+    out_path: str,
+    checkpoint_path: str = None,
+) -> None:
+    """Run a fine-tuned RoBERTa checkpoint on a MELD split and dump CSV."""
     import torch
     from src.training.train_text import TextOnlyClassifier, evaluate_on_test
 
-    ckpt_path = os.path.join(CKPT_DIR, "roberta_text_only.pt")
+    ckpt_path = checkpoint_path or os.path.join(CKPT_DIR, "roberta_text_only.pt")
     if not os.path.exists(ckpt_path):
         raise FileNotFoundError(
             f"Cannot generate {split} RoBERTa predictions: missing "
-            f"checkpoint at {ckpt_path}. Run Day 4 training first."
+            f"checkpoint at {ckpt_path}."
         )
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -198,11 +220,20 @@ def _generate_roberta_predictions_for_split(split: str, out_path: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def build_ensemble_features() -> Dict[str, pd.DataFrame]:
+def build_ensemble_features(
+    roberta_suffix: str = "",
+    roberta_checkpoint: str = None,
+    force_regenerate: bool = False,
+) -> Dict[str, pd.DataFrame]:
     """Build the 19-dim feature DataFrames for train / val / test.
 
-    The RoBERTa CSVs carry only (text, true_label, probs) — we align them
-    by row-index to the other three prediction files.
+    Args:
+        roberta_suffix: inserted before the .csv extension when caching
+            the RoBERTa predictions (e.g. ``"_v2"``).
+        roberta_checkpoint: explicit path to the .pt; falls back to the
+            default ``checkpoints/roberta_text_only.pt``.
+        force_regenerate: if True, ignore any cached RoBERTa CSV and
+            re-run the model on all three splits.
 
     Returns:
         dict mapping split name -> DataFrame with columns:
@@ -214,7 +245,12 @@ def build_ensemble_features() -> Dict[str, pd.DataFrame]:
     for split in ("train", "val", "test"):
         raw_split = raw[raw["split"] == split].reset_index(drop=True)
 
-        rob = _load_roberta_predictions(split).reset_index(drop=True)
+        rob = _load_roberta_predictions(
+            split,
+            suffix=roberta_suffix,
+            roberta_checkpoint=roberta_checkpoint,
+            force_regenerate=force_regenerate,
+        ).reset_index(drop=True)
         if len(rob) != len(raw_split):
             raise RuntimeError(
                 f"Row count mismatch on split={split}: "
@@ -238,11 +274,19 @@ def build_ensemble_features() -> Dict[str, pd.DataFrame]:
     return out
 
 
-def save_feature_csvs(feature_dfs: Dict[str, pd.DataFrame]) -> None:
-    """Persist the 3 ensemble_features_*.csv files under data/processed."""
+def save_feature_csvs(feature_dfs: Dict[str, pd.DataFrame],
+                       suffix: str = "") -> None:
+    """Persist the 3 ensemble_features_*.csv files under data/processed.
+
+    ``suffix`` (e.g. ``"_v2"``) is appended before the extension so
+    multiple versions can coexist:
+        ensemble_features_train.csv     <- baseline
+        ensemble_features_train_v2.csv  <- with new RoBERTa
+    """
     os.makedirs(DATA_DIR, exist_ok=True)
     for split, df in feature_dfs.items():
-        path = os.path.join(DATA_DIR, f"ensemble_features_{split}.csv")
+        path = os.path.join(DATA_DIR,
+                            f"ensemble_features_{split}{suffix}.csv")
         df.to_csv(path, index=False)
         print(f"  Saved {path}  (shape={df.shape})")
 
@@ -368,14 +412,43 @@ def save_best_classifier(name: str, model: object,
 # ---------------------------------------------------------------------------
 
 
-def main() -> None:
+def parse_args(argv=None):
+    import argparse
+    p = argparse.ArgumentParser(
+        description="Build 19-dim ensemble features and train the meta-classifier."
+    )
+    p.add_argument("--roberta-checkpoint", default=None,
+                   help="Path to RoBERTa .pt. Default: "
+                        "checkpoints/roberta_text_only.pt")
+    p.add_argument("--output-suffix", default="",
+                   help="Suffix appended to all outputs "
+                        "(e.g. '_v2'). Use this to keep the original "
+                        "meta_classifier.pkl + features intact.")
+    p.add_argument("--force-regenerate", action="store_true",
+                   help="Re-run RoBERTa over the MELD splits even if a "
+                        "cached predictions CSV already exists.")
+    return p.parse_args(argv)
+
+
+def main(argv=None) -> None:
+    args = parse_args(argv)
+    suffix = args.output_suffix
+
     print("=" * 60)
-    print("  SmartHandover — Day 6: Meta-Classifier Training")
+    print("  SmartHandover — Meta-Classifier Training")
     print("=" * 60)
+    print(f"  RoBERTa checkpoint : "
+          f"{args.roberta_checkpoint or '(default) roberta_text_only.pt'}")
+    print(f"  Output suffix      : {suffix or '(none)'}")
+    print(f"  Force regenerate   : {args.force_regenerate}")
 
     print("\n[Step 1/3] Building 19-dim feature vectors ...")
-    feature_dfs = build_ensemble_features()
-    save_feature_csvs(feature_dfs)
+    feature_dfs = build_ensemble_features(
+        roberta_suffix=suffix,
+        roberta_checkpoint=args.roberta_checkpoint,
+        force_regenerate=args.force_regenerate,
+    )
+    save_feature_csvs(feature_dfs, suffix=suffix)
 
     X_train, y_train = _as_xy(feature_dfs["train"])
     X_val,   y_val   = _as_xy(feature_dfs["val"])
@@ -410,17 +483,23 @@ def main() -> None:
         )
 
     print("\n[Step 3/3] Saving best model ...")
-    ckpt_path = save_best_classifier(best_name, best_model)
+    ckpt_path = os.path.join(CKPT_DIR, f"meta_classifier{suffix}.pkl")
+    save_best_classifier(best_name, best_model, ckpt_path=ckpt_path)
 
     # Save a small JSON manifest for convenience.
     manifest = {
         "best_meta_classifier": best_name,
         "checkpoint": ckpt_path,
+        "roberta_checkpoint": (args.roberta_checkpoint
+                               or os.path.join(CKPT_DIR,
+                                               "roberta_text_only.pt")),
+        "output_suffix": suffix,
         "feature_columns": FEATURE_COLUMNS,
         "target_labels": TARGET_LABELS,
         "summary": summary,
     }
-    manifest_path = os.path.join(DATA_DIR, "meta_classifier_summary.json")
+    manifest_path = os.path.join(DATA_DIR,
+                                  f"meta_classifier{suffix}_summary.json")
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
     print(f"  Manifest saved -> {manifest_path}")
