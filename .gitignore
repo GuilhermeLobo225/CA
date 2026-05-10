@@ -30,12 +30,18 @@ data/processed/*.png
 data/cache/
 
 # Synthetic data (generated locally, large + costs API credits to regenerate)
+# Match every audio variant: studio, phone-band, smoke test, etc.
 data/synthetic/audio/
-data/synthetic/*.wav
+data/synthetic/audio_phone/
+data/synthetic/audio_*/
+data/synthetic/smoke_audio/
+data/synthetic/**/*.wav
 data/synthetic/*.jsonl
 data/synthetic/manifest.csv
+data/synthetic/audio_phone_manifest.csv
 data/synthetic/text_judged.jsonl
 data/synthetic/validation_*
+data/synthetic/smoke_*
 
 # API keys / secrets - never commit
 .env
