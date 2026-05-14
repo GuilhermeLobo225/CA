@@ -172,9 +172,25 @@ meta-classifier weights (.pkl)**. Two categories of large files are
 - **No API keys, no large .pt files needed.**
 
 **Running the live Gradio demo** (need .pt checkpoints):
-- Get `roberta_combined.pt` and `wav2vec2_finetuned.pt` from teammate's
-  shared OneDrive/Drive folder, place in `checkpoints/`.
-- Run: `python -m src.demo.app`
+
+Clone the repo, then download the trained model weights from the
+GitHub Release (the .pt files are too large for git — 477 MB and
+1.2 GB respectively):
+
+```bash
+python scripts/download_checkpoints.py
+```
+
+This pulls `roberta_combined.pt` and `wav2vec2_finetuned.pt` from
+the `v1.0-models` release into `checkpoints/`. Then:
+
+```bash
+python -m src.demo.app
+```
+
+Opens a Gradio interface at `http://127.0.0.1:7860`. Upload an audio
+clip or record from the microphone — the system returns the predicted
+emotion, the handover decision, and the per-model breakdown.
 
 ## Reproducing the results
 
