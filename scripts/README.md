@@ -1,36 +1,44 @@
 # scripts/
 
-Thin entry-point scripts for each day of the sprint. They orchestrate
-modules from `src/` and are designed to be run **from the project root**:
+Entry-point scripts that run from the project root. Each writes a JSON
+summary (or CSV) to `data/processed/` and exits — every number quoted
+in the top-level README comes from one of these outputs.
+
+## v4 pipeline (baseline)
 
 ```bash
-python scripts/run_day1_vader.py     # VADER baseline -> data/processed/vader_predictions.csv
-python scripts/run_day2_goemo.py     # GoEmotions zero-shot
-python scripts/run_day3_audio.py     # SpeechBrain (wav2vec2-IEMOCAP) + Whisper smoke test
-python scripts/run_day4_train.py     # Fine-tune RoBERTa on MELD (text-only)
-python scripts/run_day5_ensemble.py  # Week-1 weighted-average baseline
+python scripts/run_dayF8_retrain_roberta.py    # 4-condition RoBERTa retrain
+python scripts/run_dayF13_finetune_wav2vec2.py # wav2vec2 fine-tune
+python scripts/run_dayF14_cross_corpus_matrix.py  # 4x4 cross-corpus eval
+python scripts/run_dayF15_ensemble_v3.py        # 19-dim ensemble v3
+python scripts/run_dayF16_ensemble_v4.py        # 20-dim ensemble v4 (LR + isotonic)
+python scripts/run_dayF17_simulate_handover_v4.py # conversation-level sim
 ```
 
-For Week 2+ deliverables run the modules directly:
+## v5 pipeline (current best)
 
 ```bash
-python -m src.classifiers.ensemble_trainer       # meta-classifier (Day 6)
-python -m src.evaluation.ablation                # leave-one-out study (Day 7)
-python -m src.evaluation.error_analysis          # error analysis + threshold sweep (Day 8)
-python -m src.classifiers.fusion_strategies      # 3-way fusion comparison
-python -m src.classifiers.pipeline               # end-to-end smoke test
-python -m src.decision.simulate_handover         # conversation-level handover sim (Day 10)
-python -m src.training.train_meta_balanced       # SMOTE + isotonic calibration variant
-python -m src.demo.app                           # Gradio demo (Day 11)
+python scripts/run_dayG1_train_text_v5.py       # focal-loss RoBERTa re-fine-tune
+python scripts/run_dayG2_features_v5.py         # rebuild 20-dim feature CSVs
+python scripts/run_dayG3_meta_v5.py             # LR / XGB-grid / MLP / Stacking
+python scripts/run_dayG4_threshold_v5.py        # threshold sweep (Rule A + Rule B)
+python scripts/run_dayG5_simulate_handover_v5.py # conversation-level sim
+python scripts/run_dayG8_final_summary.py        # consolidated JSON
 ```
 
-Synthetic-data pipeline (Phase 4):
+## Synthetic-data pipeline (text + audio, run once)
 
 ```bash
 python -m src.data.synthetic.generate_text       # text via OpenAI / IAEDU
-python -m src.data.synthetic.filter_text         # heuristic + LLM-judge filter
+python -m src.data.synthetic.filter_text         # heuristics + LLM-judge filter
 python -m src.data.synthetic.generate_audio      # TTS via gpt-4o-mini-tts
-python -m src.data.synthetic.validate sample     # listening-test sheet
-python -m src.data.synthetic.validate annotate --name <you>
-python -m src.data.synthetic.validate score      # Cohen's kappa report
+```
+
+Synthetic outputs land in `data/synthetic/` and are gitignored (large +
+require an API key to regenerate).
+
+## Demo
+
+```bash
+python -m src.demo.app                           # Gradio demo on the v4 pipeline
 ```

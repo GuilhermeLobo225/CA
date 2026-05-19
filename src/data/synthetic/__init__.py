@@ -8,5 +8,4 @@ Modules
 * generate_text  : LLM text generator (resumable, checkpointed)
 * filter_text    : LLM-as-judge + heuristic quality filter
 * generate_audio : TTS generator with per-sample emotional instructions
-* validate       : CLI listening test + Cohen's kappa report
 """

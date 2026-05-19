@@ -1,0 +1,40 @@
+{
+  "primary_rule": "B (max val handover_f1, no precision floor)",
+  "weights": {
+    "w_anger": 0.6,
+    "w_frust": 0.4
+  },
+  "optimal_threshold": 0.1,
+  "validation_metrics": {
+    "handover_precision": 0.5285714285714286,
+    "handover_recall": 0.6883720930232559,
+    "handover_f1": 0.5979797979797981,
+    "frustration_recall": 0.65
+  },
+  "test_metrics": {
+    "handover_precision": 0.42503259452411996,
+    "handover_recall": 0.7041036717062635,
+    "handover_f1": 0.5300813008130082,
+    "frustration_recall": 0.54
+  },
+  "rule_a_fallback": {
+    "description": "max val frust_recall s.t. val handover_precision >= 0.50",
+    "weights": {
+      "w_anger": 0.55,
+      "w_frust": 0.45
+    },
+    "optimal_threshold": 0.1,
+    "validation_metrics": {
+      "handover_precision": 0.5231316725978647,
+      "handover_recall": 0.6837209302325581,
+      "handover_f1": 0.5927419354838709,
+      "frustration_recall": 0.675
+    },
+    "test_metrics": {
+      "handover_precision": 0.423728813559322,
+      "handover_recall": 0.7019438444924406,
+      "handover_f1": 0.5284552845528455,
+      "frustration_recall": 0.54
+    }
+  }
+}

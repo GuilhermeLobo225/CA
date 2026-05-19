@@ -1,0 +1,136 @@
+{
+  "config": {
+    "loss": "FocalLoss",
+    "gamma": 2.0,
+    "use_class_weights": true,
+    "lr": 2e-05,
+    "freeze_epochs": 2,
+    "unfreeze_top_n": 4,
+    "max_epochs": 10,
+    "patience": 5,
+    "batch_size": 32,
+    "synth_path": "C:\\Users\\PC\\Documents\\GitHub\\CA\\data\\synthetic\\text_filtered.jsonl",
+    "seed": 42
+  },
+  "training_time_sec": 552.3,
+  "best_epoch": 6,
+  "best_val_frust_recall": 0.15,
+  "best_val_w_f1": 0.6331200188560907,
+  "best_val_macro_f1": 0.5076468641431702,
+  "test_w_f1": 0.6486748561776976,
+  "test_macro_f1": 0.479418295302081,
+  "test_frust_recall": 0.14,
+  "test_frust_f1": 0.14432989690721648,
+  "history": {
+    "epoch": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "train_loss": [
+      1.0239839319981232,
+      0.7888417602215292,
+      0.39204588676144614,
+      0.2731229315365479,
+      0.23574280894338062,
+      0.20309941464225556,
+      0.16977201981403553,
+      0.15122030304850645,
+      0.1399169338072307,
+      0.13255000387071145
+    ],
+    "val_loss": [
+      0.9611118872960408,
+      0.8104215820630392,
+      0.5929380695025126,
+      0.5655137062072754,
+      0.5848335564136505,
+      0.6122273842493693,
+      0.6250822504361471,
+      0.6776811242103576,
+      0.6714335680007935,
+      0.6898278435071309
+    ],
+    "val_wf1": [
+      0.22041020812853088,
+      0.5059480978440941,
+      0.5998952351768653,
+      0.6333718492588684,
+      0.6314451527753084,
+      0.6331200188560907,
+      0.6337654359337691,
+      0.6359843363384822,
+      0.6286880164497874,
+      0.6282213140903374
+    ],
+    "val_mf1": [
+      0.1843559445652337,
+      0.35775301270434656,
+      0.4368982100750799,
+      0.48474721014553934,
+      0.4790959121516253,
+      0.5076468641431702,
+      0.49031272134073234,
+      0.500646877497765,
+      0.49303496723147155,
+      0.48969249428720857
+    ],
+    "val_frust_recall": [
+      0.0,
+      0.0,
+      0.025,
+      0.075,
+      0.075,
+      0.15,
+      0.1,
+      0.125,
+      0.125,
+      0.125
+    ]
+  },
+  "eval_per_split": {
+    "train": {
+      "n": 8783,
+      "weighted_f1": 0.7832775020783246,
+      "macro_f1": 0.6905000006447433,
+      "frust_recall": 0.4141791044776119,
+      "frust_f1": 0.47435897435897434,
+      "anger_recall": 0.7043478260869566,
+      "csv": "data\\processed\\roberta_predictions_train_v5.csv"
+    },
+    "val": {
+      "n": 958,
+      "weighted_f1": 0.6331200188560907,
+      "macro_f1": 0.5076468641431702,
+      "frust_recall": 0.15,
+      "frust_f1": 0.21052631578947367,
+      "anger_recall": 0.5371428571428571,
+      "csv": "data\\processed\\roberta_predictions_val_v5.csv"
+    },
+    "test": {
+      "n": 2329,
+      "weighted_f1": 0.6486748561776976,
+      "macro_f1": 0.479418295302081,
+      "frust_recall": 0.14,
+      "frust_f1": 0.14432989690721648,
+      "anger_recall": 0.5423728813559322,
+      "csv": "data\\processed\\roberta_predictions_test_v5.csv"
+    }
+  },
+  "aborted": true,
+  "abort_reason": "focal loss did not improve over weighted CE in this configuration: best val frust_recall=0.1500 <= 0.32 after 10 epochs.",
+  "v4_reference": {
+    "comment": "v4 RoBERTa (combined_cw) was trained with weighted CE; values below are from data/processed/roberta_predictions_v2.csv",
+    "val_frust_recall": 0.15,
+    "test_w_f1": 0.6537,
+    "test_macro_f1": 0.4873,
+    "test_frust_recall": 0.18
+  }
+}

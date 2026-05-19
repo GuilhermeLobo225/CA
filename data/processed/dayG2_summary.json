@@ -1,0 +1,46 @@
+{
+  "feature_schema": [
+    "prob_anger",
+    "prob_frust",
+    "prob_sadne",
+    "prob_neutr",
+    "prob_satis",
+    "goemo_anger",
+    "goemo_disgust",
+    "goemo_fear",
+    "goemo_joy",
+    "goemo_neutral",
+    "goemo_sadness",
+    "vader_pos",
+    "vader_neg",
+    "vader_neu",
+    "vader_compound",
+    "audio_anger",
+    "audio_frust",
+    "audio_sad",
+    "audio_neut",
+    "audio_satis"
+  ],
+  "roberta_source": "v4",
+  "v5_used": false,
+  "splits": {
+    "train": {
+      "n": 8783,
+      "out_path": "data\\processed\\ensemble_features_train_v5.csv"
+    },
+    "val": {
+      "n": 958,
+      "out_path": "data\\processed\\ensemble_features_val_v5.csv"
+    },
+    "test": {
+      "n": 2329,
+      "out_path": "data\\processed\\ensemble_features_test_v5.csv"
+    }
+  },
+  "block_sources": {
+    "prob_*": "v4",
+    "goemo_*": "v4 (unchanged from j-hartmann/emotion-english-distilroberta-base)",
+    "vader_*": "v4 (unchanged from VADER sentiment)",
+    "audio_*": "v4 (unchanged from wav2vec2_finetuned.pt)"
+  }
+}
