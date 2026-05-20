@@ -64,3 +64,6 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Gradio cache (auto-gerado pela demo)
+.gradio/
