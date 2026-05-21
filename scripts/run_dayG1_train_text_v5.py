@@ -44,9 +44,7 @@ from src.training.train_text_v5 import train_model_v5  # noqa: E402
 DATA_DIR = os.path.join("data", "processed")
 CKPT_DIR = "checkpoints"
 SYNTH_LOCAL = os.path.join("data", "synthetic", "text_filtered.jsonl")
-SYNTH_MAIN_WORKTREE = (
-    r"C:\Users\PC\Documents\GitHub\CA\data\synthetic\text_filtered.jsonl"
-)
+SYNTH_MAIN_WORKTREE = os.environ.get("SYNTH_TEXT_PATH", "")
 
 
 def _resolve_synth_path(override: str | None) -> str:
