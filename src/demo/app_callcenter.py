@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 from gtts import gTTS
 import tempfile
 
-# A IMPORTAÇÃO QUE FALTAVA (O coração da vossa Tese)
-from src.classifiers.pipeline_v4 import SmartHandoverPipelineV4
+
+from src.classifiers.pipeline_v5 import SmartHandoverPipelineV5
 
 # --- CONFIGURAÇÃO DA VOZ (gTTS Seguro e Rápido) ---
 def generate_bot_audio(text):
@@ -23,14 +23,13 @@ def generate_bot_audio(text):
     tts.save(temp_file.name)
     return temp_file.name
 
-# --- CARREGAMENTO DO PIPELINE DA TESE ---
 pipeline = None
 
 def get_pipeline():
     global pipeline
     if pipeline is None:
-        print("[Simulador] A carregar o pipeline V4 (Whisper + Wav2Vec2 + RoBERTa)...")
-        pipeline = SmartHandoverPipelineV4()
+        print("[Simulador] A carregar o pipeline V5 (Whisper + Wav2Vec2 + RoBERTa)...")
+        pipeline = SmartHandoverPipelineV5()
     return pipeline
 
 def get_instant_smart_reply(transcription):
