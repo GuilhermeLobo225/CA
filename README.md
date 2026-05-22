@@ -210,7 +210,8 @@ guilhermelobo225-ca/
 │   │   ├── stacking.py                     #   Stacking soft-vote
 │   │   ├── ensemble.py                     #   Composição
 │   │   ├── pipeline.py                     #   Pipeline genérico
-│   │   ├── pipeline_v4.py                  #   Pipeline servido pelo demo
+│   │   ├── pipeline_v4.py                  #   Pipeline anterior
+│   │   ├── pipeline_v5.py                  #   Pipeline servido pelo demo
 │   │   └── fusion_strategies.py            #   Estratégias de fusão alternativas
 │   │
 │   ├── data/
@@ -229,7 +230,7 @@ guilhermelobo225-ca/
 │   │
 │   ├── demo/
 │   │   ├── app.py                          #   Demo base
-│   │   └── app_callcenter.py               #   Demo principal (pipeline v4)
+│   │   └── app_callcenter.py               #   Demo principal (pipeline v5)
 │   │
 │   ├── evaluation/
 │   │   ├── ablation.py                     #   Leave-one-modality-out
@@ -293,6 +294,7 @@ guilhermelobo225-ca/
    ```bash
    python -m src.demo.app_callcenter
    # Abre http://localhost:7860
+   # Abre public URL
    ```
 
 5. **(Opcional) Regenerar corpus sintético:**
