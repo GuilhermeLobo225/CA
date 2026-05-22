@@ -320,11 +320,6 @@ guilhermelobo225-ca/
 
 ---
 
-## 🎥 Apresentação
-
-Sessão de apresentação na semana de **27 de maio de 2026**.
-
----
 
 ## 👥 Grupo — MIA
 
