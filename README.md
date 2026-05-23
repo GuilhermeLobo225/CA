@@ -24,7 +24,9 @@ Ensemble multimodal com *late fusion* para **deteção de frustração** em apoi
 * **Resultados negativos reportados:** focal loss e calibração probabilística do meta-classificador foram testadas e **não** melhoraram — informativo para localizar o teto na qualidade dos labels.
 * **Governance explícita:** alinhamento com RGPD, AI Act e ODS 8/9/10 discutidos como condições da implementação, não como benefícios automáticos.
 
-> 📄 **Relatório:** [Ver PDF do Relatório](Relatório_CA_G1.pdf)
+> 📄 **Relatório:** [Ver PDF do Relatório](Relatório_CA_G1.pdf)  
+> 🔗 **Repositório:** [github.com/GuilhermeLobo225/CA](https://github.com/GuilhermeLobo225/CA)  
+> 📦 **Checkpoints:** [GitHub Releases](https://github.com/GuilhermeLobo225/CA/releases) (RoBERTa fine-tuned + wav2vec2 fine-tuned)
 
 ---
 
@@ -266,7 +268,7 @@ guilhermelobo225-ca/
 
 1. **Clonar e instalar dependências:**
    ```bash
-   git clone https://github.com/SEU_USER/CA.git
+   git clone https://github.com/GuilhermeLobo225/CA.git
    cd CA
    pip install -r requirements.txt
    ```
