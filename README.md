@@ -8,6 +8,7 @@
 ![XGBoost](https://img.shields.io/badge/Meta-XGBoost-00B050)
 ![Gradio](https://img.shields.io/badge/Demo-Gradio-F97316)
 ![License](https://img.shields.io/badge/License-Academic-lightgrey)
+![Grade](https://img.shields.io/badge/Grade-19/20-green)
 
 > **Computação Afetiva** | Mestrado em Inteligência Artificial | Universidade do Minho | 2025/26
 
